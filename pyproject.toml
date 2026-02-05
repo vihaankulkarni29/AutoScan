@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "autodock"
+version = "0.1.0"
+description = "AutoDock: Molecular docking simulation tool for receptor-ligand binding affinity prediction"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+    {name = "Bioinformatics Team", email = "bio@example.com"}
+]
+keywords = ["docking", "molecular-dynamics", "bioinformatics", "receptor-ligand"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+
+dependencies = [
+    "biopython>=1.80",
+    "typer[all]>=0.9.0",
+    "pyyaml>=6.0",
+    "pandas>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "black>=23.0",
+    "pylint>=2.17",
+    "mypy>=1.0",
+]
+
+[project.scripts]
+autodock = "autodock.main:main"
+
+[project.urls]
+Repository = "https://github.com/AutoDock"
+Documentation = "https://autodock.readthedocs.io"
+Issues = "https://github.com/AutoDock/issues"
+
+[tool.setuptools]
+packages = ["autodock", "autodock.core", "autodock.engine", "autodock.utils"]
+package-dir = {"" = "src"}
+
+[tool.black]
+line-length = 100
+target-version = ['py39', 'py310', 'py311']
+
+[tool.pylint]
+max-line-length = 100
+disable = ["C0103", "C0114"]
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false

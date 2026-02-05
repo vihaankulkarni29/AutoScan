@@ -1,0 +1,47 @@
+"""Pocket definitions for AutoDock Vina.
+
+This YAML file defines the search space (grid box) for each receptor.
+Each pocket specifies the coordinates and size of the search box.
+
+Example:
+    pockets:
+      default:
+        center_x: 10.5
+        center_y: 20.3
+        center_z: 15.8
+        size_x: 20.0
+        size_y: 20.0
+        size_z: 20.0
+
+For the GyrA receptor (PDB 3NUU), these coordinates represent the
+ATP-binding pocket where antibiotics like ciprofloxacin bind.
+"""
+
+pockets:
+  default:
+    # Generic default pocket - replace with actual coordinates
+    center_x: 0.0
+    center_y: 0.0
+    center_z: 0.0
+    size_x: 20.0
+    size_y: 20.0
+    size_z: 20.0
+
+  GyrA_pocket:
+    # DNA gyrase (topoisomerase II) ATP-binding pocket
+    # Reference: PDB 3NUU
+    center_x: 10.5
+    center_y: 20.3
+    center_z: 15.8
+    size_x: 25.0
+    size_y: 25.0
+    size_z: 25.0
+
+  GyrA_D87_pocket:
+    # Pocket focused on D87 residue for mutation studies
+    center_x: 10.8
+    center_y: 21.1
+    center_z: 16.2
+    size_x: 20.0
+    size_y: 20.0
+    size_z: 20.0
