@@ -40,6 +40,12 @@ def dock(
     output_format: str = typer.Option(
         "json", help="Output format: json or text"
     ),
+    use_consensus: bool = typer.Option(
+        False, help="Enable consensus scoring (uses multiple scorers if available)"
+    ),
+    consensus_method: str = typer.Option(
+        "mean", help="Consensus method: mean, median, or weighted"
+    ),
     verbose: bool = typer.Option(False, help="Enable verbose logging"),
 ):
     """
@@ -48,7 +54,7 @@ def dock(
     Step 1: Fetch receptor PDB
     Step 2: Optionally mutate residue
     Step 3: Prepare molecules (PDB -> PDBQT)
-    Step 4: Execute docking
+    Step 4: Execute docking (with optional consensus scoring)
     Step 5: Return binding affinity (ΔG)
     """
     if verbose:
@@ -96,12 +102,21 @@ def dock(
 
         # Step 4: Execute docking (The Fit)
         logger.info("Step 4: Executing docking simulation")
+        if use_consensus:
+            logger.info(f"Consensus scoring ENABLED (method: {consensus_method})")
+        
         config_file = CONFIG_DIR / "pockets.yaml"
         grid_calc = GridCalculator(str(config_file))
         grid_box = grid_calc.get_grid(pocket)
 
         vina = VinaWrapper()
-        result = vina.dock(receptor_pdbqt, ligand_pdbqt, grid_box.to_vina_args())
+        result = vina.dock(
+            receptor_pdbqt,
+            ligand_pdbqt,
+            grid_box.to_vina_args(),
+            use_consensus=use_consensus,
+            consensus_method=consensus_method,
+        )
 
         # Step 5: Return verdict (The Verdict)
         logger.info("Step 5: Returning binding affinity")
@@ -110,11 +125,20 @@ def dock(
             output = vina.to_json(result)
             print(output)
         else:
-            print(
-                f"Binding Affinity: {result.binding_affinity} kcal/mol\n"
-                f"RMSD LB: {result.rmsd_lb}\n"
-                f"RMSD UB: {result.rmsd_ub}"
-            )
+            if use_consensus and result.consensus_affinity:
+                print(
+                    f"Vina Binding Affinity: {result.binding_affinity} kcal/mol\n"
+                    f"Consensus Binding Affinity: {result.consensus_affinity:.2f} ± {result.consensus_uncertainty:.2f} kcal/mol\n"
+                    f"Individual Scores: {result.consensus_scores}\n"
+                    f"RMSD LB: {result.rmsd_lb}\n"
+                    f"RMSD UB: {result.rmsd_ub}"
+                )
+            else:
+                print(
+                    f"Binding Affinity: {result.binding_affinity} kcal/mol\n"
+                    f"RMSD LB: {result.rmsd_lb}\n"
+                    f"RMSD UB: {result.rmsd_ub}"
+                )
 
         logger.info("=== AutoDock Pipeline Completed Successfully ===")
 
