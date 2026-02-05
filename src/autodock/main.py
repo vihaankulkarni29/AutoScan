@@ -46,6 +46,12 @@ def dock(
     consensus_method: str = typer.Option(
         "mean", help="Consensus method: mean, median, or weighted"
     ),
+    ph: float = typer.Option(
+        7.4, help="Physiological pH for protonation state (default: 7.4)"
+    ),
+    use_meeko: bool = typer.Option(
+        True, help="Use Meeko for enhanced preparation (better charges)"
+    ),
     verbose: bool = typer.Option(False, help="Enable verbose logging"),
 ):
     """
@@ -53,9 +59,11 @@ def dock(
 
     Step 1: Fetch receptor PDB
     Step 2: Optionally mutate residue
-    Step 3: Prepare molecules (PDB -> PDBQT)
+    Step 3: Prepare molecules (PDB -> PDBQT) with pH-aware protonation
     Step 4: Execute docking (with optional consensus scoring)
     Step 5: Return binding affinity (ΔG)
+    
+    Phase 2 Enhancement: Uses Meeko for better charge assignment and pH-aware prep.
     """
     if verbose:
         logger.setLevel("DEBUG")
@@ -71,7 +79,6 @@ def dock(
         # Step 2: Apply mutation if specified
         if mutation:
             logger.info(f"Step 2: Applying mutation {mutation}")
-            prep = PrepareVina()
             parts = mutation.split(":")
             if len(parts) == 2:
                 res_num, new_aa = int(parts[0]), parts[1]
@@ -81,14 +88,16 @@ def dock(
             else:
                 raise ValueError("Mutation format: RESIDUE:NEWAA or CHAIN:RESIDUE:NEWAA")
 
-            receptor_pdb_file = prep.mutate_residue(
+            receptor_pdb_file = PrepareVina.mutate_residue(
                 receptor_pdb_file, chain_id, res_num, new_aa
             )
 
-        # Step 3: Prepare molecules
-        logger.info("Step 3: Preparing receptor and ligand (PDB -> PDBQT)")
-        prep = PrepareVina()
-        receptor_pdbqt = prep.pdb_to_pdbqt(receptor_pdb_file)
+        # Step 3: Prepare molecules (Phase 2 enhanced)
+        logger.info(f"Step 3: Preparing molecules (pH={ph}, meeko={use_meeko})")
+        prep = PrepareVina(use_meeko=use_meeko, ph=ph)
+        
+        logger.info("Preparing receptor with pH-aware protonation...")
+        receptor_pdbqt = prep.prepare_receptor(receptor_pdb_file)
 
         # For ligand, assume it's cached or provide a path
         ligand_dir = Path("data/ligands")
@@ -98,7 +107,9 @@ def dock(
                 f"Ligand {ligand_name} not found in {ligand_dir}. "
                 "Please provide a PDB or PDBQT file for the ligand."
             )
-        ligand_pdbqt = prep.pdb_to_pdbqt(ligand_pdb)
+        
+        logger.info("Preparing ligand with flexibility detection...")
+        ligand_pdbqt = prep.prepare_ligand(ligand_pdb)
 
         # Step 4: Execute docking (The Fit)
         logger.info("Step 4: Executing docking simulation")

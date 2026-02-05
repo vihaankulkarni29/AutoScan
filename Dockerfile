@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY . /app/
 
 # Install Python dependencies
+# Phase 2: Added meeko and rdkit for enhanced molecular preparation
 RUN pip install --no-cache-dir -e .
 
 # Create data directories

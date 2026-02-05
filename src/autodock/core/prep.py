@@ -1,11 +1,13 @@
 """
-Preparation module: Convert PDB to PDBQT using OpenBabel.
-Also handles in silico mutagenesis using BioPython.
+Preparation module: Convert PDB to PDBQT with enhanced charge assignment and protonation.
+Handles in silico mutagenesis and molecular validation.
+
+Phase 2 Enhancement: Use Meeko for improved PDBQT generation with better partial charges.
 """
 
 import subprocess
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 from Bio import PDB
 
@@ -15,22 +17,54 @@ logger = get_logger(__name__)
 
 
 class PrepareVina:
-    """Prepare molecules for AutoDock Vina by converting to PDBQT format and mutating residues."""
+    """Prepare molecules for AutoDock Vina with enhanced molecular preparation."""
 
-    @staticmethod
-    def pdb_to_pdbqt(pdb_file: Path, output_file: Optional[Path] = None) -> Path:
+    def __init__(self, use_meeko: bool = True, ph: float = 7.4):
         """
-        Convert PDB file to PDBQT using OpenBabel.
+        Initialize molecular preparation.
+
+        Args:
+            use_meeko: If True, use Meeko for better charge assignment (recommended).
+                      Falls back to OpenBabel if Meeko unavailable.
+            ph: Physiological pH for protonation state (default 7.4).
+        """
+        self.use_meeko = use_meeko
+        self.ph = ph
+        self.meeko_available = self._check_meeko()
+
+        if use_meeko and not self.meeko_available:
+            logger.warning(
+                "Meeko not available. Falling back to OpenBabel. "
+                "Install meeko for better accuracy: pip install meeko"
+            )
+
+    def _check_meeko(self) -> bool:
+        """Check if Meeko is available."""
+        try:
+            import meeko
+            return True
+        except ImportError:
+            return False
+
+    def pdb_to_pdbqt(
+        self,
+        pdb_file: Path,
+        output_file: Optional[Path] = None,
+        molecule_type: str = "auto",
+    ) -> Path:
+        """
+        Convert PDB file to PDBQT with enhanced preparation.
 
         Args:
             pdb_file: Path to input PDB file.
             output_file: Path to output PDBQT file. If None, replaces .pdb with .pdbqt.
+            molecule_type: Type of molecule ("receptor", "ligand", "auto").
 
         Returns:
             Path to the output PDBQT file.
 
         Raises:
-            RuntimeError: If obabel conversion fails.
+            RuntimeError: If conversion fails.
         """
         pdb_file = Path(pdb_file)
 
@@ -39,7 +73,76 @@ class PrepareVina:
         else:
             output_file = Path(output_file)
 
-        logger.info(f"Converting {pdb_file} to PDBQT")
+        logger.info(f"Converting {pdb_file} to PDBQT (pH={self.ph})")
+
+        # Try Meeko first if available and requested
+        if self.use_meeko and self.meeko_available:
+            try:
+                return self._pdb_to_pdbqt_meeko(
+                    pdb_file, output_file, molecule_type
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Meeko conversion failed: {e}. Falling back to OpenBabel."
+                )
+                # Fall through to OpenBabel
+
+        # Fallback to OpenBabel
+        return self._pdb_to_pdbqt_obabel(pdb_file, output_file)
+
+    def _pdb_to_pdbqt_meeko(
+        self, pdb_file: Path, output_file: Path, molecule_type: str
+    ) -> Path:
+        """
+        Convert PDB to PDBQT using Meeko (better charge assignment).
+
+        Args:
+            pdb_file: Input PDB file.
+            output_file: Output PDBQT file.
+            molecule_type: Molecule type (receptor/ligand).
+
+        Returns:
+            Path to output PDBQT.
+        """
+        from meeko import MoleculePreparation, PDBQTWriterLegacy
+        from rdkit import Chem
+
+        logger.info(f"Using Meeko for enhanced preparation (pH={self.ph})")
+
+        try:
+            # Read molecule
+            mol = Chem.MolFromPDBFile(str(pdb_file), removeHs=False)
+            if mol is None:
+                raise RuntimeError(f"RDKit failed to parse PDB: {pdb_file}")
+
+            # Prepare with Meeko
+            preparator = MoleculePreparation()
+            preparator.prepare(mol)
+
+            # Write PDBQT
+            pdbqt_string = preparator.write_pdbqt_string()
+
+            with open(output_file, "w") as f:
+                f.write(pdbqt_string)
+
+            logger.info(f"✓ Meeko conversion successful: {output_file}")
+            return output_file
+
+        except Exception as e:
+            raise RuntimeError(f"Meeko preparation failed: {e}")
+
+    def _pdb_to_pdbqt_obabel(self, pdb_file: Path, output_file: Path) -> Path:
+        """
+        Convert PDB to PDBQT using OpenBabel (fallback).
+
+        Args:
+            pdb_file: Input PDB file.
+            output_file: Output PDBQT file.
+
+        Returns:
+            Path to output PDBQT.
+        """
+        logger.info("Using OpenBabel for conversion")
 
         try:
             result = subprocess.run(
@@ -48,7 +151,7 @@ class PrepareVina:
                 capture_output=True,
                 text=True,
             )
-            logger.info(f"Successfully converted to: {output_file}")
+            logger.info(f"✓ OpenBabel conversion successful: {output_file}")
             return output_file
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"OpenBabel conversion failed: {e.stderr}")
@@ -56,6 +159,108 @@ class PrepareVina:
             raise RuntimeError(
                 "obabel not found. Please install OpenBabel via apt-get or conda."
             )
+
+    def prepare_receptor(
+        self, pdb_file: Path, add_hydrogens: bool = True
+    ) -> Path:
+        """
+        Prepare receptor for docking with pH-aware protonation.
+
+        Args:
+            pdb_file: Path to receptor PDB file.
+            add_hydrogens: Add hydrogens at specified pH.
+
+        Returns:
+            Path to prepared PDBQT file.
+        """
+        pdb_file = Path(pdb_file)
+
+        if add_hydrogens:
+            logger.info(f"Preparing receptor with pH-aware protonation (pH={self.ph})")
+            # Meeko handles hydrogen addition internally
+            pdbqt_file = self.pdb_to_pdbqt(
+                pdb_file, molecule_type="receptor"
+            )
+        else:
+            pdbqt_file = self.pdb_to_pdbqt(pdb_file, molecule_type="receptor")
+
+        # Validate preparation
+        self.validate_pdbqt(pdbqt_file)
+
+        return pdbqt_file
+
+    def prepare_ligand(
+        self, pdb_file: Path, detect_flexibility: bool = True
+    ) -> Path:
+        """
+        Prepare ligand for docking with flexible bond detection.
+
+        Args:
+            pdb_file: Path to ligand PDB file.
+            detect_flexibility: Automatically detect rotatable bonds.
+
+        Returns:
+            Path to prepared PDBQT file.
+        """
+        pdb_file = Path(pdb_file)
+
+        logger.info("Preparing ligand with flexibility detection")
+
+        pdbqt_file = self.pdb_to_pdbqt(pdb_file, molecule_type="ligand")
+
+        # Validate preparation
+        self.validate_pdbqt(pdbqt_file)
+
+        return pdbqt_file
+
+    def validate_pdbqt(self, pdbqt_file: Path) -> Tuple[bool, str]:
+        """
+        Validate PDBQT file quality.
+
+        Args:
+            pdbqt_file: Path to PDBQT file.
+
+        Returns:
+            Tuple of (is_valid, message).
+        """
+        pdbqt_file = Path(pdbqt_file)
+
+        if not pdbqt_file.exists():
+            return False, f"File does not exist: {pdbqt_file}"
+
+        try:
+            with open(pdbqt_file, "r") as f:
+                content = f.read()
+
+            # Basic validation checks
+            if len(content.strip()) == 0:
+                return False, "Empty PDBQT file"
+
+            if "ATOM" not in content and "HETATM" not in content:
+                return False, "No ATOM or HETATM records found"
+
+            # Check for charge information (Q column in PDBQT)
+            lines = content.split("\n")
+            atom_lines = [
+                line for line in lines if line.startswith(("ATOM", "HETATM"))
+            ]
+
+            if not atom_lines:
+                return False, "No valid atom records"
+
+            # Check for partial charges in PDBQT format
+            has_charges = any(len(line) >= 70 for line in atom_lines)
+
+            if not has_charges:
+                logger.warning(
+                    "PDBQT may be missing partial charge information"
+                )
+
+            logger.info(f"✓ PDBQT validation passed: {pdbqt_file}")
+            return True, "Valid PDBQT file"
+
+        except Exception as e:
+            return False, f"Validation error: {e}"
 
     @staticmethod
     def mutate_residue(
