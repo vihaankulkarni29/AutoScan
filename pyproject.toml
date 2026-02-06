@@ -3,9 +3,9 @@ requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "autodock"
+name = "autoscan"
 version = "0.1.0"
-description = "AutoDock: Molecular docking simulation tool for receptor-ligand binding affinity prediction"
+description = "AutoScan: Molecular docking simulation tool for receptor-ligand binding affinity prediction"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
@@ -45,15 +45,15 @@ dev = [
 ]
 
 [project.scripts]
-autodock = "autodock.main:main"
+autoscan = "autoscan.main:main"
 
 [project.urls]
-Repository = "https://github.com/AutoDock"
-Documentation = "https://autodock.readthedocs.io"
-Issues = "https://github.com/AutoDock/issues"
+Repository = "https://github.com/vihaankulkarni29/AutoScan"
+Documentation = "https://vihaankulkarni29.github.io/AutoScan"
+Issues = "https://github.com/vihaankulkarni29/AutoScan/issues"
 
 [tool.setuptools]
-packages = ["autodock", "autodock.core", "autodock.engine", "autodock.utils"]
+packages = ["autoscan", "autoscan.core", "autoscan.engine", "autoscan.utils"]
 package-dir = {"" = "src"}
 
 [tool.black]

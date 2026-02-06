@@ -7,7 +7,7 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
-from autodock.utils import get_logger
+from autoscan.utils import get_logger
 
 logger = get_logger(__name__)
 

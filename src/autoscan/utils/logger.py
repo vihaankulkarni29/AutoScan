@@ -1,5 +1,5 @@
 """
-Logging utility for AutoDock.
+Logging utility for AutoScan.
 """
 
 import logging

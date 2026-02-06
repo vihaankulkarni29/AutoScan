@@ -11,7 +11,7 @@ from typing import Optional, Tuple
 
 from Bio import PDB
 
-from autodock.utils import get_logger
+from autoscan.utils import get_logger
 
 logger = get_logger(__name__)
 

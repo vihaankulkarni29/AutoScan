@@ -24,6 +24,10 @@ RUN pip install --no-cache-dir -e .
 # Create data directories
 RUN mkdir -p /app/data/receptors /app/data/ligands
 
+# Autoscan runtime defaults
+ENV AUTOSCAN_DATA_DIR=/app/data \
+    AUTOSCAN_CONFIG_DIR=/app/config
+
 # Set the entrypoint to the CLI
-ENTRYPOINT ["autodock"]
+ENTRYPOINT ["autoscan"]
 CMD ["--help"]

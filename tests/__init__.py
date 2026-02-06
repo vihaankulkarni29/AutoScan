@@ -1,1 +1,1 @@
-"""Test suite for AutoDock."""
+"""Test suite for AutoScan."""

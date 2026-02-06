@@ -1,8 +1,8 @@
 """
-AutoDock CLI: Main entry point for the docking pipeline.
+AutoScan CLI: Main entry point for the docking pipeline.
 
 Usage:
-    autodock dock --receptor-pdb 3NUU --ligand-name ciprofloxacin --mutation D87G
+    autoscan dock --receptor-pdb 3NUU --ligand-name ciprofloxacin --mutation D87G
 """
 
 import json
@@ -12,11 +12,11 @@ from typing import Optional
 
 import typer
 
-from autodock.core import PDBFetcher, PrepareVina
-from autodock.engine import GridCalculator, VinaWrapper
-from autodock.utils import get_logger
+from autoscan.core import PDBFetcher, PrepareVina
+from autoscan.engine import GridCalculator, VinaWrapper
+from autoscan.utils import get_logger
 
-app = typer.Typer(help="AutoDock: Molecular docking for binding affinity prediction")
+app = typer.Typer(help="AutoScan: Molecular docking for binding affinity prediction")
 logger = get_logger(__name__)
 
 # Determine config directory
@@ -73,7 +73,7 @@ def dock(
         logger.setLevel("DEBUG")
 
     try:
-        logger.info("=== AutoDock Pipeline Started ===")
+        logger.info("=== AutoScan Pipeline Started ===")
 
         # Step 1: Fetch receptor (The Lock)
         logger.info(f"Step 1: Fetching receptor {receptor_pdb}")
@@ -177,7 +177,7 @@ def dock(
                     f"RMSD UB: {result.rmsd_ub}"
                 )
 
-        logger.info("=== AutoDock Pipeline Completed Successfully ===")
+        logger.info("=== AutoScan Pipeline Completed Successfully ===")
 
     except Exception as e:
         logger.error(f"Pipeline failed: {e}", exc_info=verbose)

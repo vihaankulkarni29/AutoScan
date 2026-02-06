@@ -1,5 +1,5 @@
 """
-AutoDock: Molecular docking simulation tool for receptor-ligand binding affinity prediction.
+AutoScan: Molecular docking simulation tool for receptor-ligand binding affinity prediction.
 
 This module implements the "Lock and Key" philosophy for biochemical interaction modeling.
 - Lock: Receptor Protein

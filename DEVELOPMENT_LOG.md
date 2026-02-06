@@ -1,4 +1,4 @@
-# AutoDock Development Log
+# AutoScan Development Log
 
 ## Project Status: Production-Ready with Known Limitations
 
@@ -92,7 +92,7 @@
 
 ## Recommended Next Steps for Resistance Validation
 
-To establish AutoDock as a resistance prediction tool, test simpler cases first:
+To establish AutoScan as a resistance prediction tool, test simpler cases first:
 
 ### **Candidate Test Cases**
 1. **HIV Protease Inhibitors**:
@@ -143,12 +143,12 @@ To establish AutoDock as a resistance prediction tool, test simpler cases first:
 
 ## Conclusion
 
-**AutoDock is production-ready** for:
+**AutoScan is production-ready** for:
 - Virtual screening campaigns
 - Binding pose prediction
 - Comparative docking studies (ΔΔG)
 
-**AutoDock requires extension** for:
+**AutoScan requires extension** for:
 - Metal-dependent drug resistance
 - Flexible receptor resistance mechanisms
 - Ternary complex-mediated resistance
@@ -159,5 +159,5 @@ The pipeline is **scientifically validated** for its core capabilities, with cle
 
 **Validation Completed**: February 6, 2026  
 **System Status**: Ready for deployment  
-**GitHub**: https://github.com/vihaankulkarni29/AutoDock  
-**Docker Image**: `autodock:v1`
+**GitHub**: https://github.com/vihaankulkarni29/AutoScan  
+**Docker Image**: `autoscan:v1`

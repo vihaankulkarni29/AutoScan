@@ -1,17 +1,23 @@
-# AutoDock: Molecular Docking for Binding Affinity Prediction
+# AutoScan: Molecular Docking for Binding Affinity Prediction
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Vision: The "Lock and Key" Philosophy
 
-AutoDock simulates the fundamental biochemical principle of molecular recognition:
+AutoScan simulates the fundamental biochemical principle of molecular recognition:
 
 - **The Lock**: Receptor Protein (e.g., DNA Gyrase, GyrA)
 - **The Key**: Ligand / Small Molecule (e.g., Ciprofloxacin, an antibiotic)
 - **The Goal**: Calculate if the "Key" still fits the "Lock" after a mutation
 
-This tool predicts **binding affinity (ΔG)** to detect how mutations affect drug efficacy.
+This tool predicts **binding affinity (Delta G)** to detect how mutations affect drug efficacy.
+
+## Features
+
+- **Automated Virtual Screening**: Rapidly screen small molecule libraries against bacterial targets.
+- **Physics-Based Scoring**: Uses AutoDock Vina to calculate Delta G binding affinities.
+- **Resistance Prediction (Beta)**: Currently detects steric clashes for large structural changes. Note: single-point mutation resistance prediction is under development (integration with Molecular Dynamics planned).
 
 ## Architectural Design
 
@@ -20,7 +26,7 @@ Built as a **standalone tool** with a **seamless API** for future integration in
 ### Directory Structure
 
 ```
-AutoDock/
+AutoScan/
 ├── .github/workflows/          # CI/CD pipelines (linting, Docker builds)
 ├── config/                     # Pocket definitions (receptor binding sites)
 │   └── pockets.yaml            # Grid box coordinates for Vina
@@ -28,7 +34,7 @@ AutoDock/
 │   ├── receptors/              # PDB files (Locks)
 │   └── ligands/                # PDB/PDBQT files (Keys)
 ├── docker/                     # Docker build context
-├── src/autodock/               # Main package
+├── src/autoscan/               # Main package
 │   ├── core/
 │   │   ├── fetcher.py          # RCSB PDB downloader
 │   │   └── prep.py             # PDB → PDBQT converter (OpenBabel wrapper)
@@ -50,8 +56,8 @@ AutoDock/
 
 ```bash
 # Clone repository
-git clone https://github.com/AutoDock/AutoDock.git
-cd AutoDock
+git clone https://github.com/vihaankulkarni29/AutoScan.git
+cd AutoScan
 
 # Create virtual environment
 python -m venv venv
@@ -72,10 +78,10 @@ brew install open-babel autodock-vina
 
 ```bash
 # Build image
-docker build -t autodock:latest .
+docker build -t autoscan:latest .
 
 # Run container
-docker run --rm-v autodock:latest \
+docker run --rm autoscan:latest \
   dock --receptor-pdb 3NUU --ligand-name ciprofloxacin --mutation A:87:D:G
 ```
 
@@ -86,7 +92,7 @@ docker run --rm-v autodock:latest \
 #### Basic Docking (Wild-Type)
 
 ```bash
-autodock dock \
+autoscan dock \
   --receptor-pdb 3NUU \
   --ligand-name ciprofloxacin \
   --pocket GyrA_pocket
@@ -95,7 +101,7 @@ autodock dock \
 #### Docking with Mutation (Mutant)
 
 ```bash
-autodock dock \
+autoscan dock \
   --receptor-pdb 3NUU \
   --ligand-name ciprofloxacin \
   --mutation A:87:D:G \
@@ -131,8 +137,8 @@ RMSD UB: 0.5
 ### Python API
 
 ```python
-from autodock.core import PDBFetcher, PrepareVina
-from autodock.engine import GridCalculator, VinaWrapper
+from autoscan.core import PDBFetcher, PrepareVina
+from autoscan.engine import GridCalculator, VinaWrapper
 
 # Fetch receptor
 fetcher = PDBFetcher()
@@ -183,20 +189,20 @@ pockets:
 
 ## Pipeline Integration (MutationScan Module 7)
 
-AutoDock is designed for seamless integration into MutationScan:
+AutoScan is designed for seamless integration into MutationScan:
 
 ```python
-from autodock.core import PDBFetcher, PrepareVina
-from autodock.engine import VinaWrapper, GridCalculator
+from autoscan.core import PDBFetcher, PrepareVina
+from autoscan.engine import VinaWrapper, GridCalculator
 
 class MutationScanModule7:
-    """AutoDock integration into MutationScan pipeline."""
+    """AutoScan integration into MutationScan pipeline."""
 
     def run(self, pdb_id: str, ligand: str, mutations: List[str]) -> Dict:
         results = {}
         
         for mut in mutations:
-            # AutoDock handles mutation, prep, and docking
+            # AutoScan handles mutation, prep, and docking
             result = docking_pipeline(pdb_id, ligand, mut)
             results[mut] = result.binding_affinity
         
@@ -224,7 +230,7 @@ class MutationScanModule7:
 ### Running Tests
 
 ```bash
-pytest tests/ -v --cov=src/autodock
+pytest tests/ -v --cov=src/autoscan
 ```
 
 ### Code Quality

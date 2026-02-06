@@ -7,7 +7,7 @@ from typing import Dict, List
 
 import yaml
 
-from autodock.utils import get_logger
+from autoscan.utils import get_logger
 
 logger = get_logger(__name__)
 

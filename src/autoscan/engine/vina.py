@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Optional
 
-from autodock.utils import get_logger
+from autoscan.utils import get_logger
 
 logger = get_logger(__name__)
 
@@ -173,7 +173,7 @@ class VinaWrapper:
         Returns:
             Updated DockingResult with consensus scores.
         """
-        from autodock.engine.scoring import ConsensusScorer
+        from autoscan.engine.scoring import ConsensusScorer
 
         logger.info("Applying consensus scoring...")
 
@@ -200,9 +200,20 @@ class VinaWrapper:
     @staticmethod
     def _parse_affinity(output: str) -> float:
         """Parse binding affinity (ΔG) from Vina output."""
-        match = re.search(r"([-+]?\d+\.\d+)\s+kcal/mol", output)
+        # Vina 1.2.x prints a results table with affinity column
+        table_match = re.search(
+            r"^\s*1\s+([-+]?\d*\.?\d+(?:e[-+]?\d+)?)\s+",
+            output,
+            flags=re.MULTILINE | re.IGNORECASE,
+        )
+        if table_match:
+            return float(table_match.group(1))
+
+        # Legacy pattern: numeric value followed by kcal/mol
+        match = re.search(r"([-+]?\d*\.?\d+(?:e[-+]?\d+)?)\s+kcal/mol", output)
         if match:
             return float(match.group(1))
+
         raise RuntimeError("Could not parse binding affinity from Vina output")
 
     @staticmethod
