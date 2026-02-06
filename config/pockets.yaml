@@ -27,3 +27,15 @@ pockets:
     size_x: 20.0
     size_y: 20.0
     size_z: 20.0
+
+  RpoB_pocket:
+    # M. tuberculosis RNA Polymerase beta subunit Rifampicin-binding pocket
+    # Reference: PDB 5UH6 (M. tuberculosis RpoB + Rifampicin)
+    # RFP center extracted from ligand coordinates (Chain C, Res 1201)
+    # Resistance mutation: S456L (steric clash mechanism)
+    center_x: -10.157
+    center_y: 0.335
+    center_z: 19.853
+    size_x: 17.0
+    size_y: 19.0
+    size_z: 21.0
