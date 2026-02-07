@@ -48,3 +48,36 @@ Can AutoScan reproduce the crystallographic pose of ciprofloxacin in 2XCT?
 
 ### Conclusion
 The redocking benchmark passed with RMSD 0.910 A, validating AutoScan's structural accuracy on the 2XCT reference system.
+
+## Test 2: Thermodynamic/Kinetic Validation (Specificity Benchmark)
+
+### Scientific Question
+Can AutoScan distinguish a true binder (ciprofloxacin) from a non-specific decoy (benzene)?
+
+### Protocol Summary
+1. **Fetch** PDB 2XCT (S. aureus gyrase + CPF).
+2. **Split** protein chains A/B and ligand CPF into separate PDBs.
+3. **Prepare** benzene decoy (RDKit, 3D embed + optimize).
+4. **Dock** ciprofloxacin and benzene into the same pocket.
+5. **Compare** affinity scores and compute Delta Delta G.
+
+### Implementation Notes
+- Script: tests/validation/validate_thermodynamics.py
+- Ligand A: Ciprofloxacin (CPF from 2XCT)
+- Ligand B: Benzene (RDKit SMILES: c1ccccc1)
+- Pocket: GyrA_pocket (from config/pockets.yaml)
+- PASS criteria:
+   - Cipro affinity < -8.0 kcal/mol
+   - Benzene affinity > -5.5 kcal/mol
+   - Delta Delta G >= 2.5 kcal/mol (Cipro stronger)
+
+### Results
+- **Status**: PENDING (script added, not executed yet)
+
+### Problems Encountered and Fixes
+1. **Toolchain prerequisites**
+    - **Symptom**: Docking requires OpenBabel and Vina binaries.
+    - **Fix**: Added a preflight check in the script and documented Windows conda setup in README.
+
+### Conclusion
+The specificity benchmark script is ready. Run it after installing OpenBabel and Vina to confirm score separation between cipro and benzene.
