@@ -74,6 +74,23 @@ sudo apt-get install openbabel autoscan-vina
 brew install open-babel autoscan-vina
 ```
 
+### Windows (Conda) Setup
+
+```powershell
+# Create environment with OpenBabel
+conda create -y -n autoscan-env -c conda-forge python=3.11 openbabel
+conda activate autoscan-env
+
+# Install AutoScan in editable mode
+pip install -e .
+
+# Download Vina and place it into the env Scripts folder
+Invoke-WebRequest -Uri https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_win.exe `
+  -OutFile $env:TEMP\vina_1.2.7_win.exe
+Copy-Item $env:TEMP\vina_1.2.7_win.exe "$env:CONDA_PREFIX\Scripts\vina.exe"
+Copy-Item "$env:CONDA_PREFIX\Scripts\vina.exe" "$env:CONDA_PREFIX\Scripts\autoscan-vina.exe"
+```
+
 ### Docker (Recommended for Production)
 
 ```bash

@@ -2,11 +2,16 @@
 
 ## Project Status: Production-Ready with Known Limitations
 
-**Last Updated**: February 6, 2026
+**Last Updated**: February 7, 2026
 
 ---
 
 ## Validation Summary
+
+### ✅ Redocking Benchmark (2XCT: DNA Gyrase + Ciprofloxacin)
+- **Protocol**: Extract CPF from 2XCT, randomize ligand pose, redock, compute RMSD
+- **RMSD (Heavy-Atom, Kabsch)**: 0.910 Å (Target: < 2.5 Å) ✓
+- **Status**: **Structural accuracy validated** on 2XCT
 
 ### ✅ Pipeline Validation (2XCT: DNA Gyrase + Ciprofloxacin)
 - **Target**: *S. aureus* DNA Gyrase (PDB: 2XCT)
