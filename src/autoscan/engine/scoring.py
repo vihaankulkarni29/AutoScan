@@ -85,7 +85,7 @@ class Scorer(ABC):
 class VinaScorer(Scorer):
     """Vina scoring function."""
 
-    def __init__(self, executable: str = "vina"):
+    def __init__(self, executable: str = "autoscan-vina"):
         super().__init__(executable)
 
     def score(

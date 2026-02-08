@@ -31,12 +31,12 @@ class DockingResult:
 class VinaWrapper:
     """Wrapper around the Vina binary for molecular docking."""
 
-    def __init__(self, vina_executable: str = "vina"):
+    def __init__(self, vina_executable: str = "autoscan-vina"):
         """
         Initialize Vina wrapper.
 
         Args:
-            vina_executable: Path to the Vina executable. Defaults to 'vina' (assumes in PATH).
+            vina_executable: Path to the Vina executable. Defaults to 'autoscan-vina' (assumes in PATH).
         """
         self.vina_executable = vina_executable
         self._verify_installation()
