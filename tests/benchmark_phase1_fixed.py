@@ -11,6 +11,7 @@ from Bio.PDB import MMCIFParser, PDBIO, PDBList, PDBParser, Select
 
 from autoscan.docking.utils import calculate_grid_box
 from autoscan.docking.vina import VinaEngine
+from autoscan.utils.dependency_check import ensure_dependencies
 
 
 WORKSPACE_ROOT = Path("workspace/phase1_fixed")
@@ -311,6 +312,7 @@ def append_results(rows: list[dict[str, object]], mean_rmsd: float, success_rate
 
 
 def main() -> None:
+    ensure_dependencies()
     obabel_override = os.environ.get("OBABEL_EXE", "obabel")
     vina_override = os.environ.get("VINA_EXE", "tools/vina.exe")
     obabel_exe, obabel_error = resolve_executable("obabel", obabel_override)

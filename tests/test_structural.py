@@ -9,6 +9,7 @@ from Bio.PDB import PDBIO, PDBList, PDBParser, Select
 
 from autoscan.docking.utils import calculate_grid_box
 from autoscan.docking.vina import VinaEngine
+from autoscan.utils.dependency_check import ensure_dependencies
 
 
 WORKSPACE = Path("workspace/test_structural")
@@ -234,6 +235,8 @@ def setup_workspace():
 
 def test_redocking_accuracy(setup_workspace):
     print(f"\n[INFO] Starting Redocking Test in {setup_workspace}...")
+
+    ensure_dependencies()
 
     obabel_exe = os.environ.get("OBABEL_EXE", "obabel")
     vina_exe = os.environ.get("VINA_EXE", "tools/vina.exe")

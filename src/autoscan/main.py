@@ -1,5 +1,7 @@
 import typer
+
 from autoscan.docking.vina import VinaEngine
+from autoscan.utils.dependency_check import ensure_dependencies
 from autoscan.utils.error_handler import ErrorHandler
 
 app = typer.Typer()
@@ -18,6 +20,8 @@ def dock(
     """
     try:
         console.log("Initializing AutoScan Docking Module...")
+
+        ensure_dependencies()
 
         # 1. Physics Check (Grid Box)
         # Note: In a real run, you'd load the ligand to calculate size
