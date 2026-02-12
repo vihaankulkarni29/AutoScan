@@ -189,9 +189,33 @@ def _binary_install_hints(repo_root: Path) -> list[str]:
     vina_path = _vina_binary_path(repo_root)
     if not vina_path.exists():
         hints.append("Run: python setup_env.py (downloads AutoDock Vina into tools/)")
+    hints.append("Install Miniconda/Anaconda and ensure `conda` is on PATH.")
     hints.append("Install OpenBabel 3.1.1+ and set OBABEL_EXE if not on PATH.")
     hints.append("Install pdbfixer 1.8+ and set PDBFIXER_EXE if not on PATH.")
     return hints
+
+
+def _conda_executable() -> str | None:
+    conda_exe = os.environ.get("CONDA_EXE")
+    if conda_exe and (Path(conda_exe).exists() or shutil.which(conda_exe)):
+        return conda_exe
+    resolved = shutil.which("conda")
+    return resolved
+
+
+def _check_conda() -> list[str]:
+    issues: list[str] = []
+    if not _conda_executable():
+        issues.append("Conda not found. Install Miniconda/Anaconda and add conda to PATH.")
+    return issues
+
+
+def _install_with_conda(packages: list[str]) -> None:
+    conda_exe = _conda_executable()
+    if not conda_exe:
+        return
+    cmd = [conda_exe, "install", "-y", "-c", "conda-forge", *packages]
+    subprocess.run(cmd, check=False)
 
 
 def _vina_binary_path(repo_root: Path) -> Path:
@@ -285,6 +309,7 @@ def ensure_dependencies() -> None:
     pyproject_path = repo_root / "pyproject.toml"
 
     issues: list[str] = []
+    issues.extend(_check_conda())
     issues.extend(_check_manifest_in_pyproject(pyproject_path))
     issues.extend(_check_python_dependencies())
 
@@ -302,6 +327,7 @@ def build_dependencies(*, install_python: bool = True, quiet: bool = False) -> N
     pyproject_path = repo_root / "pyproject.toml"
 
     issues: list[str] = []
+    issues.extend(_check_conda())
     issues.extend(_check_manifest_in_pyproject(pyproject_path))
     issues.extend(_check_python_dependencies())
     issues.extend(_check_vina(repo_root))
@@ -316,6 +342,8 @@ def build_dependencies(*, install_python: bool = True, quiet: bool = False) -> N
     if install_python:
         for cmd in _python_install_commands():
             subprocess.run(cmd, check=False)
+
+    _install_with_conda(["openbabel", "pdbfixer"])
 
     hints = _binary_install_hints(repo_root)
     details = "\n".join(f"- {issue}" for issue in issues)
