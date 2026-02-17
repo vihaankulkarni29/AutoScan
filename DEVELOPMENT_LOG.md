@@ -2,14 +2,15 @@
 
 ## Project Status: Production-Ready with Known Limitations
 
-**Last Updated**: February 11, 2026
+**Last Updated**: February 17, 2026
 
-## Dependency Enforcement Update
+## Reproducible Runtime Environment (autoscan-runtime)
 
-- Ran zero-trust dependency build on Feb 11, 2026.
-- Installed: mdtraj 1.11.1.post1 (from builder).
-- Still blocked: openmm==8.0.0 not available in current Python 3.14 venv, numpy==1.24.3 not installed, OpenBabel missing, PDBFixer missing.
-- Builder requires system installs for OpenBabel and PDBFixer, plus a compatible Python environment for openmm/numpy pins.
+- Created conda runtime environment with strict dependency manifest (Python 3.10, openmm==8.0.0, numpy==1.24.3).
+- Installed all required packages from conda-forge (openbabel 3.1.1, pdbfixer 1.9, etc.).
+- **Zero-trust dependency check: PASS** in autoscan-runtime.
+- Users can now run: `conda create -y -n autoscan-runtime ... && conda activate autoscan-runtime`
+- Created [RUNTIME_SETUP.md](RUNTIME_SETUP.md) with step-by-step user instructions for reproducible setup.
 
 ## Phase 1 Structural Validation (N=10)
 
