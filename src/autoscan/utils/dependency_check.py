@@ -209,7 +209,16 @@ def _conda_executable() -> str | None:
     return resolved
 
 
+def _in_conda_environment() -> bool:
+    """Check if already running inside a conda environment."""
+    return bool(os.environ.get("CONDA_PREFIX"))
+
+
 def _conda_run(command: list[str]) -> subprocess.CompletedProcess[str]:
+    # If already in a conda environment, just run the command directly
+    if _in_conda_environment():
+        return subprocess.run(command, capture_output=True, text=True, check=False)
+    
     conda_exe = _conda_executable()
     if not conda_exe:
         raise FileNotFoundError("Conda not available")
@@ -221,7 +230,15 @@ def _conda_package_version(package: str) -> str | None:
     conda_exe = _conda_executable()
     if not conda_exe:
         return None
-    cmd = [conda_exe, "list", "-n", _CONDA_ENV_NAME, package, "--json"]
+    
+    # If already in a conda environment, query the current environment
+    env_name = None if _in_conda_environment() else _CONDA_ENV_NAME
+    
+    if env_name:
+        cmd = [conda_exe, "list", "-n", env_name, package, "--json"]
+    else:
+        cmd = [conda_exe, "list", package, "--json"]
+    
     result = subprocess.run(cmd, capture_output=True, text=True, check=False)
     if result.returncode != 0:
         return None
@@ -274,16 +291,18 @@ def _detect_version_from_output(output: str) -> str | None:
 
 
 def _detect_command_version(command: str) -> str | None:
-    for args in ([command, "--version"], [command, "--help"]):
+    for args in ([command, "--version"], [command, "--help"], [command, "-V"], [command, "-version"]):
         try:
             result = subprocess.run(
                 args,
-                check=True,
+                check=False,
                 capture_output=True,
                 text=True,
                 timeout=5,
             )
         except Exception:
+            continue
+        if result.returncode != 0:
             continue
         output = (result.stdout or "") + (result.stderr or "")
         version = _detect_version_from_output(output)
@@ -315,23 +334,15 @@ def _check_vina(repo_root: Path) -> list[str]:
 def _check_obabel() -> list[str]:
     issues: list[str] = []
     obabel_exe = os.environ.get("OBABEL_EXE", "obabel")
-    if not (Path(obabel_exe).exists() or shutil.which(obabel_exe)):
-        try:
-            version = _conda_package_version("openbabel")
-            if not version:
-                result = _conda_run(["obabel", "-V"])
-                output = (result.stdout or "") + (result.stderr or "")
-                version = _detect_version_from_output(output)
-            if not version:
-                result = _conda_run(["obabel", "--version"])
-                output = (result.stdout or "") + (result.stderr or "")
-                version = _detect_version_from_output(output)
-        except FileNotFoundError:
-            version = None
-        if version is None:
+    
+    # Try to get version from conda package first (most reliable)
+    version = _conda_package_version("openbabel")
+    
+    # If not from conda, try to detect from binary
+    if not version:
+        if not (Path(obabel_exe).exists() or shutil.which(obabel_exe)):
             issues.append("OpenBabel executable not found. Set OBABEL_EXE or add to PATH.")
             return issues
-    else:
         version = _detect_command_version(obabel_exe)
 
     required = _REQUIRED_BINARIES["obabel"]
