@@ -36,9 +36,9 @@ from autoscan.dynamics.minimizer import EnergyMinimizer, HAS_OPENMM
 # TEST CONFIGURATION
 # ============================================================================
 
-# Test data paths (using pilot study data)
-TEST_PDB = Path("pilot_study/data/receptors/3NUU_WT.pdbqt")
-TEST_PDB_ALTERNATIVE = Path("pilot_study/data/receptors/3NUU_MUT.pdbqt")
+# Test data paths (using benchmark PDB files)
+TEST_PDB = Path("tests/benchmark_data/1HVR.pdb")  # HIV-1 Protease (real PDB file)
+TEST_PDB_ALTERNATIVE = Path("tests/benchmark_data/1STP.pdb")  # Streptavidin
 MUTANT_PDBQT = Path("pilot_study/data/receptors/3NUU_MUT_mutant.pdbqt")
 LIGAND = Path("pilot_study/data/ligands/nalidixic_acid.pdbqt")
 

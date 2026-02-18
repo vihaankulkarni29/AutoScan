@@ -156,13 +156,20 @@ class EnergyMinimizer:
             # STEP 1: Load PDB structure
             # ================================================================
             pdb = app.PDBFile(str(pdb_path))
-            logger.info(f"  Loaded PDB: {len(pdb.topology.atoms)} atoms")
+            logger.info(f"  Loaded PDB: {len(list(pdb.topology.atoms()))} atoms")
+
+            # ================================================================
+            # STEP 1.5: Add missing hydrogens (if needed)
+            # ================================================================
+            modeller = app.Modeller(pdb.topology, pdb.positions)
+            modeller.addHydrogens(self.forcefield)
+            logger.info(f"  Added hydrogens: {len(list(modeller.topology.atoms()))} total atoms")
 
             # ================================================================
             # STEP 2: Create OpenMM System
             # ================================================================
             system = self.forcefield.createSystem(
-                pdb.topology,
+                modeller.topology,
                 nonbondedMethod=app.NoCutoff,
                 constraints=app.HBonds,
                 removeCMMotion=True
@@ -189,9 +196,9 @@ class EnergyMinimizer:
                 
                 # Restrain only backbone atoms (CA, C, N)
                 backbone_atoms = 0
-                for atom in pdb.topology.atoms():
+                for atom in modeller.topology.atoms():
                     if atom.name in ('CA', 'C', 'N'):
-                        pos = pdb.positions[atom.index]
+                        pos = modeller.positions[atom.index]
                         restraint.addParticle(atom.index, [pos[0], pos[1], pos[2]])
                         backbone_atoms += 1
                 
@@ -213,8 +220,8 @@ class EnergyMinimizer:
             # ================================================================
             # STEP 5: Create Simulation
             # ================================================================
-            simulation = app.Simulation(pdb.topology, system, integrator)
-            simulation.context.setPositions(pdb.positions)
+            simulation = app.Simulation(modeller.topology, system, integrator)
+            simulation.context.setPositions(modeller.positions)
             logger.info("  Simulation context created")
 
             # ================================================================
@@ -251,7 +258,7 @@ class EnergyMinimizer:
             # STEP 9: Save Minimized Structure
             # ================================================================
             with open(output_path, 'w') as f:
-                app.PDBFile.writeFile(pdb.topology, state1.getPositions(), f)
+                app.PDBFile.writeFile(modeller.topology, state1.getPositions(), f)
 
             logger.info(f"  ✓ Relaxed structure saved: {output_path}")
             logger.info("Energy minimization complete!")

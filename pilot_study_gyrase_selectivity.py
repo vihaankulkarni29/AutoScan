@@ -274,9 +274,11 @@ def run_docking(
                     pass
         
         # Run docking with CONSENSUS SCORING enabled
+        # Use real AutoDock Vina executable
+        VINA_PATH = r"C:\Users\Vihaan\Documents\AutoDock\tools\vina.exe"
         simulated = False
         try:
-            engine = VinaEngine(str(receptor_path), str(ligand_path))
+            engine = VinaEngine(str(receptor_path), str(ligand_path), vina_executable=VINA_PATH)
             # NEW: Pass consensus parameters to enable multi-engine scoring
             docking_result = engine.run(
                 center=[center["center_x"], center["center_y"], center["center_z"]],
@@ -288,7 +290,7 @@ def run_docking(
             consensus_affinity = docking_result.consensus_affinity
             consensus_uncertainty = docking_result.consensus_uncertainty
         except Exception as e:
-            print(f"  ⚠ Docking engine not available (Vina not installed), using simulated result")
+            print(f"  ⚠ Docking engine not available: {e}, using simulated result")
             # Simulate result for demo
             import random
             score = round(random.uniform(-10.0, -5.0), 2)
