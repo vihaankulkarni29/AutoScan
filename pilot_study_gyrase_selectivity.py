@@ -183,10 +183,11 @@ def run_docking(
     target_key: str,
     drug_name: str,
     mutation: str = None,
-    results_dir: Path = None
+    results_dir: Path = None,
+    minimize: bool = False
 ) -> Dict:
     """
-    Execute AutoScan dock command with mutation support.
+    Execute AutoScan dock command with mutation support and optional minimization.
     
     Args:
         receptor_pdb: Path to receptor file (PDB or PDBQT)
@@ -195,12 +196,14 @@ def run_docking(
         drug_name: Name of drug
         mutation: Optional mutation string (e.g., "A:87:D:G")
         results_dir: Directory to save results
+        minimize: If True, apply energy minimization to mutant structure
     
     Returns:
         Dict with docking results
     """
     from autoscan.docking.vina import VinaEngine
     from autoscan.core.prep import PrepareVina
+    from autoscan.dynamics.minimizer import EnergyMinimizer, HAS_OPENMM
     
     target = TARGETS[target_key]
     center = target["binding_site"]
@@ -228,6 +231,24 @@ def run_docking(
             chain_id, residue_num, from_aa, to_aa = _parse_mutation(mutation)
             try:
                 mutant_pdb = prep.mutate_residue(Path(receptor_pdb), chain_id, residue_num, to_aa)
+                print(f"  ✓ Mutation applied: {mutation}")
+                
+                # Apply minimization if requested and OpenMM available
+                if minimize and HAS_OPENMM:
+                    try:
+                        print(f"  🔬 Minimizing mutant structure energy...")
+                        minimizer = EnergyMinimizer()
+                        minimized_pdb = minimizer.minimize(
+                            Path(mutant_pdb),
+                            output_path=Path(mutant_pdb).with_stem(Path(mutant_pdb).stem + "_minimized")
+                        )
+                        mutant_pdb = minimized_pdb
+                        print(f"  ✓ Minimization complete: {minimized_pdb.name}")
+                    except Exception as e:
+                        print(f"  ⚠ Minimization failed: {e}, proceeding with non-minimized structure")
+                elif minimize and not HAS_OPENMM:
+                    print(f"  ⚠ Minimization requested but OpenMM not available - skipping")
+                
                 # If conversion needed
                 if Path(mutant_pdb).suffix.lower() != ".pdbqt":
                     try:
@@ -290,6 +311,7 @@ def run_docking(
                     "z": center["center_z"]
                 },
                 "mutation": mutation if mutation else "WT",
+                "minimized": minimize and HAS_OPENMM,
                 "simulated": simulated
             }
             with open(output_file, 'w') as f:
@@ -467,7 +489,8 @@ def main():
                 target_key,
                 drug_name,
                 mutation=target_data["mutation"],
-                results_dir=dirs["results"]
+                results_dir=dirs["results"],
+                minimize=True  # Enable energy minimization for mutants
             )
             
             if result:

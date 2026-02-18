@@ -154,6 +154,18 @@ class EnergyMinimizer:
             # ================================================================
             # STEP 1: Load PDB structure
             # ================================================================
+            # Note: Convert PDBQT to PDB if needed
+            pdb_path = Path(pdb_path)
+            if pdb_path.suffix.lower() == '.pdbqt':
+                # PDBQT files have extra fields, use PDB version if available
+                pdb_alternative = pdb_path.with_suffix('.pdb')
+                if pdb_alternative.exists():
+                    pdb_path = pdb_alternative
+                    logger.info(f"Using PDB file instead of PDBQT: {pdb_path}")
+                else:
+                    logger.warning(f"PDBQT file provided but PDB not found. Returning original structure.")
+                    return Path(pdb_path)
+            
             pdb = app.PDBFile(str(pdb_path))
             logger.info(f"  Loaded PDB: {len(pdb.topology.atoms)} atoms")
 
