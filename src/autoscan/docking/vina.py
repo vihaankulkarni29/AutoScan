@@ -22,8 +22,24 @@ class VinaEngine:
         buffer_angstroms: float = 6.0,
         cpu: int = 4,
         num_modes: int = 9,
+        exhaustiveness: int = 8,
         output_pdbqt: Optional[str] = None,
     ) -> float:
+        """
+        Run Vina docking.
+
+        Args:
+            center: [x, y, z] center coordinates.
+            ligand_mol: Optional ligand molecule for dynamic box sizing.
+            buffer_angstroms: Padding around ligand (default 6.0 Å).
+            cpu: Number of CPUs (default 4).
+            num_modes: Number of binding modes (default 9).
+            exhaustiveness: Search exhaustiveness (default 8, use 32 for deep search).
+            output_pdbqt: Output file path.
+
+        Returns:
+            Binding affinity in kcal/mol.
+        """
         grid = calculate_grid_box(center, ligand_mol=ligand_mol, buffer_angstroms=buffer_angstroms)
         grid_args = [
             "--center_x",
@@ -47,5 +63,6 @@ class VinaEngine:
             output_pdbqt=output_pdbqt,
             cpu=cpu,
             num_modes=num_modes,
+            exhaustiveness=exhaustiveness,
         )
         return result.binding_affinity

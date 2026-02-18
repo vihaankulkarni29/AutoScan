@@ -71,6 +71,7 @@ class VinaWrapper:
         output_pdbqt: Optional[Path] = None,
         cpu: int = 4,
         num_modes: int = 9,
+        exhaustiveness: int = 8,
         use_consensus: bool = False,
         consensus_method: str = "mean",
     ) -> DockingResult:
@@ -84,6 +85,7 @@ class VinaWrapper:
             output_pdbqt: Path for output PDBQT. Auto-generated if not specified.
             cpu: Number of CPUs to use.
             num_modes: Number of binding modes to generate.
+            exhaustiveness: Search exhaustiveness (default 8, use 32 for deep search).
             use_consensus: If True, use consensus scoring from multiple scorers.
             consensus_method: Method for consensus ("mean", "median", "weighted").
 
@@ -113,6 +115,8 @@ class VinaWrapper:
             str(cpu),
             "--num_modes",
             str(num_modes),
+            "--exhaustiveness",
+            str(exhaustiveness),
         ] + grid_args
 
         logger.info(f"Running Vina: {' '.join(cmd)}")

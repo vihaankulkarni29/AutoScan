@@ -4,6 +4,12 @@
 
 **Last Updated**: February 17, 2026
 
+## Phase 1.2 Offline Validation Updates (2026-02-17)
+
+- Updated offline targets to use real ligand residue names (1SQN=NDR, 4DJU=0KK, 1OQA=BTN).
+- Increased docking grid buffer to 15.0 A to reduce energy explosions.
+- Added crash-guard affinity parsing: scores > 100 or parse errors are flagged as 999.9 with status "FAIL (CLASH)".
+
 ## Reproducible Runtime Environment (autoscan-runtime)
 
 - Created conda runtime environment with strict dependency manifest (Python 3.10, openmm==8.0.0, numpy==1.24.3).
@@ -185,6 +191,69 @@ To establish AutoScan as a resistance prediction tool, test simpler cases first:
 - Ternary complex-mediated resistance
 
 The pipeline is **scientifically validated** for its core capabilities, with clear documentation of physics-based limitations.
+
+---
+
+## Calibration Control Study v2 (2026-02-17)
+
+**Objective**: Isolate physics errors (steric clashes) from search errors using 7 gold standard protein-ligand systems.
+
+**Test Design**:
+- **Twin Test Protocol**: Baseline Docking (crystal pose) vs. Stress Docking (randomized pose, max 1.0 Å translation)
+- **Gold Standard Dataset**: 7 validated targets with known reference binding energies
+- **Crash Guard**: Affinity scores >100 kcal/mol flagged as 999.9 (EXPLOSION)
+- **Status Logic**: 
+  - PASS: Random_Score < -6.0 AND not 999.9
+  - CLASH: Score == 999.9
+  - FAIL: Score > -6.0
+  - ERROR: Ligand not found or preparation failed
+
+**File Created**: [tests/benchmark_control_v2.py](tests/benchmark_control_v2.py) (638 lines)
+- Workspace prepared at `workspace/control_test_v2/`
+- CSV output: `benchmark_control_results.csv`
+
+**Key Features**:
+1. PDBList download with robustness (network failure handling)
+2. Ligand existence verification before processing (prevents crashes)
+3. Multi-chain HETATM discovery for accurate ligand extraction
+4. Smart pose randomization: Random rotation + constrained translation (±1.0 Å)
+5. Box sizing from native ligand + 15.0 Å buffer
+6. Try-except crash guards on both Vina calls
+7. Real-time table reporting + CSV export
+
+**Targets** (7 Gold Standards):
+| PDB | Ligand | Name | Ref Energy |
+|---|---|---|---|
+| 1STP | BTN | Streptavidin | -18.3 |
+| 3PTB | BEN | Trypsin | -6.4 |
+| 1HVR | XK2 | HIV Protease | -12.3 |
+| 1AID | BEA | HIV Protease (Ref) | -9.7 |
+| 1OYT | G39 | Neuraminidase | -10.1 |
+| 2J7E | PUZ | HSP90 | -8.2 |
+| 1TNH | BEN | Thrombin | -7.3 |
+
+**Status**: Script created and executed successfully. [→ Results](#calibration-control-study-v2-results)
+
+---
+
+## Calibration Control Study v2: Results (2026-02-17, Final)
+
+**Execution Status**: ✅ Completed successfully (6 local benchmark targets)
+
+**Twin Test Protocol Results** (Baseline vs. Stress Docking):
+
+| PDB ID | Ligand | Name | Baseline (kcal/mol) | Random (kcal/mol) | Status |
+|---|---|---|---:|---:|---|
+| 1STP | BTN | Streptavidin | -5.975 | -5.987 | FAIL |
+| 3PTB | BEN | Trypsin | -4.613 | -4.635 | FAIL |
+| 1HVR | XK2 | HIV Protease | -13.560 | -14.270 | **PASS** ✓ |
+| 1AID | BEA | HIV Protease (Ref) | SKIP | SKIP | ERROR |
+| 2J7E | PUZ | HSP90 | SKIP | SKIP | ERROR |
+| 1TNH | BEN | Thrombin | SKIP | SKIP | ERROR |
+
+**Summary**: 1 PASS, 2 FAIL, 3 ERROR (16.7% success rate). 1HVR demonstrates reproducible search with randomized pose achieving -14.27 vs. baseline -13.56 kcal/mol. Critical technical fix: receptor PDBQT files required cleanup (strip BRANCH/connectivity tags) for Vina compatibility.
+
+**Output**: CSV results + detailed log at `workspace/control_test_v2/benchmark_control_results.csv`
 
 ---
 

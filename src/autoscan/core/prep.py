@@ -145,16 +145,29 @@ class PrepareVina:
         Returns:
             Path to output PDBQT.
         """
-        logger.info("Using OpenBabel for conversion")
+        logger.info(f"Using OpenBabel for conversion (pH={self.ph})")
 
         try:
+            # Build command with pH and gasteiger charge calculation
+            cmd = [
+                "obabel",
+                str(pdb_file),
+                "-O",
+                str(output_file),
+                "-xr",
+                "-h",  # Add hydrogens explicitly
+                f"-p{self.ph}",  # Set pH for protonation state
+                "--partialcharge",  # Add partial charge calculation
+                "gasteiger",  # Use Gasteiger-Marsili charges
+            ]
+            
             result = subprocess.run(
-                ["obabel", str(pdb_file), "-O", str(output_file), "-xr"],
+                cmd,
                 check=True,
                 capture_output=True,
                 text=True,
             )
-            logger.info(f"✓ OpenBabel conversion successful: {output_file}")
+            logger.info(f"✓ OpenBabel conversion successful (pH {self.ph}): {output_file}")
             return output_file
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"OpenBabel conversion failed: {e.stderr}")
@@ -193,13 +206,15 @@ class PrepareVina:
         return pdbqt_file
 
     def prepare_ligand(
-        self, pdb_file: Path, detect_flexibility: bool = True
+        self, pdb_file: Path, ligand_code: Optional[str] = None, detect_flexibility: bool = True
     ) -> Path:
         """
-        Prepare ligand for docking with flexible bond detection.
+        Prepare ligand for docking with flexible bond detection and multi-ligand handling.
 
         Args:
             pdb_file: Path to ligand PDB file.
+            ligand_code: If provided, extract only the first instance of this residue code.
+                        This prevents multi-ligand crashes (e.g., 2J7E with Chain A+B copies).
             detect_flexibility: Automatically detect rotatable bonds.
 
         Returns:
@@ -209,12 +224,80 @@ class PrepareVina:
 
         logger.info("Preparing ligand with flexibility detection")
 
+        # If ligand_code is specified, extract only the first instance (greedy selector)
+        if ligand_code:
+            pdb_file = self._extract_single_ligand(pdb_file, ligand_code)
+
         pdbqt_file = self.pdb_to_pdbqt(pdb_file, molecule_type="ligand")
 
         # Validate preparation
         self.validate_pdbqt(pdbqt_file)
 
         return pdbqt_file
+
+    def _extract_single_ligand(self, pdb_file: Path, ligand_code: str) -> Path:
+        """
+        Extract only the first matching ligand residue to avoid multi-ligand crashes.
+        Implements greedy selector: chain + residue ID.
+
+        Args:
+            pdb_file: Path to input PDB file.
+            ligand_code: Residue name to extract (e.g., "GI2", "XK2").
+
+        Returns:
+            Path to extracted ligand PDB file.
+        """
+        pdb_file = Path(pdb_file)
+        output_file = pdb_file.with_stem(pdb_file.stem + "_ligand_extracted")
+
+        try:
+            parser = PDB.PDBParser(QUIET=True)
+            structure = parser.get_structure("ligand", str(pdb_file))
+
+            # Find the first matching ligand residue
+            first_chain_id = None
+            first_residue_id = None
+
+            for model in structure:
+                for chain in model:
+                    for residue in chain:
+                        if residue.get_resname().strip().upper() == ligand_code.upper():
+                            first_chain_id = chain.id
+                            first_residue_id = residue.id
+                            break
+                    if first_chain_id is not None:
+                        break
+                if first_chain_id is not None:
+                    break
+
+            if first_chain_id is None:
+                raise RuntimeError(f"Ligand {ligand_code} not found in {pdb_file}")
+
+            logger.info(
+                f"Greedy selector: Extracting {ligand_code} from chain {first_chain_id}, residue {first_residue_id}"
+            )
+
+            # Extract only that specific ligand residue
+            class LigandSelector(PDB.Select):
+                def __init__(self, target_chain, target_residue):
+                    self.target_chain = target_chain
+                    self.target_residue = target_residue
+
+                def accept_chain(self, chain):
+                    return chain.id == self.target_chain
+
+                def accept_residue(self, residue):
+                    return residue.id == self.target_residue
+
+            io = PDB.PDBIO()
+            io.set_structure(structure)
+            io.save(str(output_file), LigandSelector(first_chain_id, first_residue_id))
+
+            logger.info(f"✓ Extracted single ligand: {output_file}")
+            return output_file
+
+        except Exception as e:
+            raise RuntimeError(f"Failed to extract ligand {ligand_code}: {e}")
 
     def validate_pdbqt(self, pdbqt_file: Path) -> Tuple[bool, str]:
         """
