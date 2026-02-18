@@ -9,6 +9,7 @@ from typing import Optional
 
 from autoscan.docking.vina import VinaEngine
 from autoscan.core.prep import PrepareVina
+from autoscan.dynamics.minimizer import EnergyMinimizer, HAS_OPENMM
 from autoscan.utils.dependency_check import ensure_dependencies
 from autoscan.utils.error_handler import ErrorHandler
 
@@ -159,13 +160,16 @@ def dock(
     output: Optional[str] = typer.Option(None, help="Output file for results (JSON format)", metavar="OUTPUT.json"),
     use_consensus: bool = typer.Option(False, "--use-consensus/--no-consensus", help="Enable consensus scoring from multiple docking engines"),
     consensus_method: str = typer.Option("mean", help="Consensus method: mean, median, or weighted", metavar="METHOD"),
-    flex: Optional[str] = typer.Option(None, help="Path to flexible side-chain PDBQT for flexible docking", metavar="FLEX.pdbqt")
+    flex: Optional[str] = typer.Option(None, help="Path to flexible side-chain PDBQT for flexible docking", metavar="FLEX.pdbqt"),
+    minimize: bool = typer.Option(False, "--minimize/--no-minimize", help="Enable energy minimization for mutant structures (requires OpenMM)"),
+    minimize_iterations: int = typer.Option(1000, help="Maximum iterations for energy minimization", metavar="ITERATIONS")
 ):
     """
     Run the AutoScan Docking Protocol.
     
     Supports both PDB and PDBQT formats. PDB files are automatically converted to PDBQT.
     Optional in-silico mutagenesis for resistance and selectivity studies.
+    Optional energy minimization for relaxing mutant structures (requires OpenMM).
 
     Examples:
         Standard docking with PDBQT files:
@@ -176,10 +180,16 @@ def dock(
         $ autoscan dock --receptor protein.pdb --ligand drug.pdb \\
             --center-x 10.5 --center-y 20.3 --center-z 15.8
 
-        With mutation (resistance study):
+        With mutation and minimization:
         $ autoscan dock --receptor protein.pdb --ligand drug.pdb \\
             --center-x 10.5 --center-y 20.3 --center-z 15.8 \\
-            --mutation A:87:D:G --output result.json
+            --mutation A:87:D:G --minimize --output result.json
+
+        With consensus scoring and flexible docking:
+        $ autoscan dock --receptor protein.pdb --ligand drug.pdb \\
+            --center-x 10.5 --center-y 20.3 --center-z 15.8 \\
+            --use-consensus --consensus-method weighted \\
+            --flex flexible_residues.pdbqt --output result.json
     """
     try:
         console.log("="*80)
@@ -238,10 +248,28 @@ def dock(
             # Apply mutation to PDB
             prep = PrepareVina()
             mutant_pdb = prep.mutate_residue(original_pdb, chain_id, residue_num, to_aa)
+            console.log(f"  ✓ Mutation applied: {mutant_pdb}")
+            
+            # Energy minimization (optional, requires OpenMM)
+            if minimize:
+                if HAS_OPENMM:
+                    console.log(f"  Minimizing mutant structure energy...")
+                    try:
+                        minimizer = EnergyMinimizer()
+                        minimized_pdb = minimizer.minimize(
+                            Path(mutant_pdb),
+                            output_path=Path(mutant_pdb).with_stem(Path(mutant_pdb).stem + "_minimized")
+                        )
+                        mutant_pdb = minimized_pdb
+                        console.log(f"  ✓ Minimization complete: {minimized_pdb}")
+                    except Exception as e:
+                        console.warn(f"  ⚠  Minimization failed: {str(e)} - proceeding with non-minimized structure")
+                else:
+                    console.warn(f"  ⚠  Minimization requested but OpenMM not installed - skipping")
             
             # Convert mutant PDB to PDBQT
             receptor_path = convert_pdb_to_pdbqt(mutant_pdb)
-            console.log(f"  ✓ Mutation applied: {receptor_path}")
+            console.log(f"  ✓ Mutant structure prepared: {receptor_path}")
         
         console.log("\n[2/4] Validating Coordinates...")
         validate_coordinates(center_x, center_y, center_z)
@@ -255,6 +283,11 @@ def dock(
             console.log(f"✓ Consensus Scoring: Enabled ({consensus_method})")
         if flex:
             console.log(f"✓ Flexible Docking: {flex}")
+        if minimize:
+            if HAS_OPENMM:
+                console.log(f"✓ Energy Minimization: Enabled ({minimize_iterations} iterations)")
+            else:
+                console.log(f"⚠  Energy Minimization: Requested but OpenMM not installed (will skip)")
 
         console.log("\n[3/4] Checking Dependencies...")
         ensure_dependencies()
@@ -295,7 +328,8 @@ def dock(
                 "y": center_y,
                 "z": center_z
             },
-            "mutation": mutation if mutation else "WT"
+            "mutation": mutation if mutation else "WT",
+            "minimized": minimize and HAS_OPENMM
         }
         
         # Add consensus scores if available
