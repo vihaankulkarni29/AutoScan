@@ -234,16 +234,20 @@ def run_docking(
                 print(f"  ✓ Mutation applied: {mutation}")
                 
                 # Apply minimization if requested and OpenMM available
+                # CRITICAL UPDATE (Module 8 v1.1): Apply stiffness=500.0
+                # This keeps the backbone rigid (preserving the pocket shape)
+                # while allowing side chains to relax (fixing clashes).
                 if minimize and HAS_OPENMM:
                     try:
-                        print(f"  🔬 Minimizing mutant structure energy...")
+                        print(f"  🔬 Minimizing mutant structure with backbone restraints (k=500.0)...")
                         minimizer = EnergyMinimizer()
                         minimized_pdb = minimizer.minimize(
                             Path(mutant_pdb),
-                            output_path=Path(mutant_pdb).with_stem(Path(mutant_pdb).stem + "_minimized")
+                            output_path=Path(mutant_pdb).with_stem(Path(mutant_pdb).stem + "_minimized"),
+                            stiffness=500.0  # Moderate restraint - prevents pocket collapse
                         )
                         mutant_pdb = minimized_pdb
-                        print(f"  ✓ Minimization complete: {minimized_pdb.name}")
+                        print(f"  ✓ Minimization complete with restraints: {minimized_pdb.name}")
                     except Exception as e:
                         print(f"  ⚠ Minimization failed: {e}, proceeding with non-minimized structure")
                 elif minimize and not HAS_OPENMM:
