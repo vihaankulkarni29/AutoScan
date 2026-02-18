@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "autoscan"
-version = "0.1.0"
-description = "AutoScan: Molecular docking simulation tool for receptor-ligand binding affinity prediction"
+version = "1.0.0"
+description = "AutoScan: Production-validated molecular docking tool for Gyrase inhibitors"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
@@ -14,7 +14,7 @@ authors = [
 ]
 keywords = ["docking", "molecular-dynamics", "bioinformatics", "receptor-ligand"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
     "License :: OSI Approved :: MIT License",
