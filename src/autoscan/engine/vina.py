@@ -74,6 +74,7 @@ class VinaWrapper:
         exhaustiveness: int = 8,
         use_consensus: bool = False,
         consensus_method: str = "mean",
+        flex_pdbqt: Optional[Path] = None,
     ) -> DockingResult:
         """
         Execute docking simulation with optional consensus scoring.
@@ -118,6 +119,10 @@ class VinaWrapper:
             "--exhaustiveness",
             str(exhaustiveness),
         ] + grid_args
+        
+        # Add flexible side-chain docking if specified
+        if flex_pdbqt:
+            cmd.extend(["--flex", str(flex_pdbqt)])
 
         logger.info(f"Running Vina: {' '.join(cmd)}")
 

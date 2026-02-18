@@ -156,7 +156,10 @@ def dock(
     center_y: float = typer.Option(..., help="Binding pocket center Y coordinate", metavar="Y"),
     center_z: float = typer.Option(..., help="Binding pocket center Z coordinate", metavar="Z"),
     mutation: Optional[str] = typer.Option(None, help="Mutation: CHAIN:RESIDUE:FROM_AA:TO_AA (e.g., A:87:D:G)", metavar="MUTATION"),
-    output: Optional[str] = typer.Option(None, help="Output file for results (JSON format)", metavar="OUTPUT.json")
+    output: Optional[str] = typer.Option(None, help="Output file for results (JSON format)", metavar="OUTPUT.json"),
+    use_consensus: bool = typer.Option(False, "--use-consensus/--no-consensus", help="Enable consensus scoring from multiple docking engines"),
+    consensus_method: str = typer.Option("mean", help="Consensus method: mean, median, or weighted", metavar="METHOD"),
+    flex: Optional[str] = typer.Option(None, help="Path to flexible side-chain PDBQT for flexible docking", metavar="FLEX.pdbqt")
 ):
     """
     Run the AutoScan Docking Protocol.
@@ -248,20 +251,45 @@ def dock(
         console.log(f"✓ Center:   ({center_x}, {center_y}, {center_z})")
         if mutation:
             console.log(f"✓ Mutation: {mutation}")
+        if use_consensus:
+            console.log(f"✓ Consensus Scoring: Enabled ({consensus_method})")
+        if flex:
+            console.log(f"✓ Flexible Docking: {flex}")
 
         console.log("\n[3/4] Checking Dependencies...")
         ensure_dependencies()
 
         console.log("\n[4/4] Running Docking Engine...")
+        
+        # Validate flex file if provided
+        flex_path = None
+        if flex:
+            flex_path = Path(flex)
+            if not flex_path.exists():
+                raise typer.BadParameter(
+                    f"Flexible residues file does not exist: {flex}",
+                    param_hint="--flex"
+                )
+            if flex_path.suffix.lower() != ".pdbqt":
+                raise typer.BadParameter(
+                    f"Flex file must be .pdbqt, got: {flex_path.suffix}",
+                    param_hint="--flex"
+                )
+        
         engine = VinaEngine(str(receptor_path), str(ligand_path))
-        score = engine.run(center=[center_x, center_y, center_z])
+        docking_result = engine.run(
+            center=[center_x, center_y, center_z],
+            use_consensus=use_consensus,
+            consensus_method=consensus_method,
+            flex_pdbqt=flex_path
+        )
 
         # Prepare results
         results = {
             "timestamp": datetime.now().isoformat(),
             "receptor": str(receptor_path),
             "ligand": str(ligand_path),
-            "binding_affinity_kcal_mol": float(score),
+            "binding_affinity_kcal_mol": float(docking_result.binding_affinity),
             "center": {
                 "x": center_x,
                 "y": center_y,
@@ -270,11 +298,22 @@ def dock(
             "mutation": mutation if mutation else "WT"
         }
         
+        # Add consensus scores if available
+        if use_consensus and docking_result.consensus_affinity is not None:
+            results["consensus_mode"] = True
+            results["consensus_affinity_kcal_mol"] = float(docking_result.consensus_affinity)
+            results["consensus_uncertainty_kcal_mol"] = float(docking_result.consensus_uncertainty)
+            results["individual_scores"] = docking_result.consensus_scores
+            success_msg = f"Docking Complete! Consensus Affinity: {docking_result.consensus_affinity:.2f} ± {docking_result.consensus_uncertainty:.2f} kcal/mol"
+        else:
+            results["consensus_mode"] = False
+            success_msg = f"Docking Complete! Binding Affinity: {docking_result.binding_affinity:.2f} kcal/mol"
+        
         # Save results if output specified
         if output:
             save_results_json(results, Path(output))
         
-        console.success(f"\nDocking Complete! Binding Affinity: {score} kcal/mol")
+        console.success(f"\n{success_msg}")
         console.log("="*80)
 
     except typer.BadParameter:

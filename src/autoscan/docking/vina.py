@@ -24,7 +24,10 @@ class VinaEngine:
         num_modes: int = 9,
         exhaustiveness: int = 8,
         output_pdbqt: Optional[str] = None,
-    ) -> float:
+        use_consensus: bool = False,
+        consensus_method: str = "mean",
+        flex_pdbqt: Optional[Path] = None,
+    ):
         """
         Run Vina docking.
 
@@ -64,5 +67,8 @@ class VinaEngine:
             cpu=cpu,
             num_modes=num_modes,
             exhaustiveness=exhaustiveness,
+            use_consensus=use_consensus,
+            consensus_method=consensus_method,
+            flex_pdbqt=flex_pdbqt,
         )
-        return result.binding_affinity
+        return result
