@@ -248,28 +248,42 @@ def run_docking(
                 except:
                     pass
         
-        # Run docking
+        # Run docking with CONSENSUS SCORING enabled
         simulated = False
         try:
             engine = VinaEngine(str(receptor_path), str(ligand_path))
-            score = engine.run(center=[center["center_x"], center["center_y"], center["center_z"]])
+            # NEW: Pass consensus parameters to enable multi-engine scoring
+            docking_result = engine.run(
+                center=[center["center_x"], center["center_y"], center["center_z"]],
+                use_consensus=True,           # Enable consensus scoring
+                consensus_method="weighted",  # Use weighted average of engines
+                flex_pdbqt=None               # Optional: flexible residues (not used in this pilot)
+            )
+            score = docking_result.binding_affinity
+            consensus_affinity = docking_result.consensus_affinity
+            consensus_uncertainty = docking_result.consensus_uncertainty
         except Exception as e:
             print(f"  ⚠ Docking engine not available (Vina not installed), using simulated result")
             # Simulate result for demo
             import random
             score = round(random.uniform(-10.0, -5.0), 2)
+            consensus_affinity = round(random.uniform(-10.0, -5.0), 2)
+            consensus_uncertainty = round(random.uniform(0.1, 0.5), 2)
             simulated = True
-            print(f"  ✓ Simulated Binding Affinity: {score:.2f} kcal/mol")
+            print(f"  ✓ Simulated Vina Affinity: {score:.2f} kcal/mol")
+            print(f"  ✓ Consensus Affinity: {consensus_affinity:.2f} ± {consensus_uncertainty:.2f} kcal/mol")
         
         # Save results
         output_file = None
         if results_dir:
             output_file = results_dir / f"{target_key}_{drug_name}.json"
-            docking_result = {
+            result_dict = {
                 "timestamp": datetime.now().isoformat(),
                 "receptor": str(receptor_path),
                 "ligand": str(ligand_path),
                 "binding_affinity_kcal_mol": float(score),
+                "consensus_affinity_kcal_mol": float(consensus_affinity) if not simulated else float(consensus_affinity),
+                "consensus_uncertainty_kcal_mol": float(consensus_uncertainty) if not simulated else float(consensus_uncertainty),
                 "center": {
                     "x": center["center_x"],
                     "y": center["center_y"],
@@ -279,12 +293,16 @@ def run_docking(
                 "simulated": simulated
             }
             with open(output_file, 'w') as f:
-                json.dump(docking_result, f, indent=2)
+                json.dump(result_dict, f, indent=2)
             if not simulated:
-                print(f"  ✓ Binding Affinity: {score:.2f} kcal/mol")
-            return docking_result
+                print(f"  ✓ Vina Affinity: {score:.2f} kcal/mol")
+                print(f"  ✓ Consensus Affinity: {consensus_affinity:.2f} ± {consensus_uncertainty:.2f} kcal/mol")
+            return result_dict
         
-        return {"status": "success", "binding_affinity_kcal_mol": float(score), "simulated": simulated}
+        return {"status": "success", "binding_affinity_kcal_mol": float(score), 
+                "consensus_affinity_kcal_mol": float(consensus_affinity),
+                "consensus_uncertainty_kcal_mol": float(consensus_uncertainty), 
+                "simulated": simulated}
     
     except Exception as e:
         print(f"  ❌ Error: {str(e)}")
@@ -328,15 +346,16 @@ predicting resistance mechanisms?
 - **Target A (WT)**: Wild-Type Gyrase (PDB: 3NUU)
 - **Target B (MUT)**: Mutant Gyrase (A:87:D:G mutation applied in silico)
 - **Library**: {len(ANTIBIOTIC_LIBRARY)} FDA-approved Gyrase inhibitors
-- **Assay**: Virtual docking to compare Delta-G (binding affinity)
+- **Scoring Method**: Consensus Scoring (weighted average of multiple docking engines)
+- **Assay**: Virtual docking to compare Consensus ΔG (binding affinity) ± uncertainty
 
 ## Results Summary
 
 """
     
-    # Add results table
-    report_md += "| Drug | MW | WT (kcal/mol) | MUT (kcal/mol) | DeltaDeltaG (MUT-WT) | SelectivityClass |\n"
-    report_md += "|------|----|----|----|----|----|\n"
+    # Add results table with CONSENSUS SCORING
+    report_md += "| Drug | MW | WT Consensus | MUT Consensus | DeltaDeltaG | Uncertainty | SelectivityClass |\n"
+    report_md += "|------|----|----|----|----|----|----|----|\n"
     
     for drug in sorted(drug_results.keys()):
         results_dict = drug_results[drug]
@@ -345,11 +364,15 @@ predicting resistance mechanisms?
         mut_data = results_dict.get("MUT")
         
         if wt_data and mut_data:
-            wt_aff = wt_data.get("binding_affinity_kcal_mol", "N/A")
-            mut_aff = mut_data.get("binding_affinity_kcal_mol", "N/A")
+            # Use consensus affinity if available, otherwise vina affinity
+            wt_aff = wt_data.get("consensus_affinity_kcal_mol") or wt_data.get("binding_affinity_kcal_mol", "N/A")
+            mut_aff = mut_data.get("consensus_affinity_kcal_mol") or mut_data.get("binding_affinity_kcal_mol", "N/A")
+            wt_unc = wt_data.get("consensus_uncertainty_kcal_mol", 0)
+            mut_unc = mut_data.get("consensus_uncertainty_kcal_mol", 0)
             
             if isinstance(wt_aff, (int, float)) and isinstance(mut_aff, (int, float)):
                 delta_delta_g = mut_aff - wt_aff
+                avg_uncertainty = (wt_unc + mut_unc) / 2 if (wt_unc and mut_unc) else 0
                 
                 if delta_delta_g > 2.0:
                     selectivity = "R - Resistant"
@@ -361,7 +384,7 @@ predicting resistance mechanisms?
                     selectivity = "W - Neutral"
                 
                 mw = ANTIBIOTIC_LIBRARY[drug].get("molecular_weight", "N/A")
-                report_md += f"| {drug} | {mw} | {wt_aff:.2f} | {mut_aff:.2f} | {delta_delta_g:+.2f} | {selectivity} |\n"
+                report_md += f"| {drug} | {mw} | {wt_aff:.2f} | {mut_aff:.2f} | {delta_delta_g:+.2f} | ±{avg_uncertainty:.2f} | {selectivity} |\n"
     
     report_md += f"""
 
@@ -452,6 +475,8 @@ def main():
                     "drug": drug_name,
                     "target": target_key,
                     "binding_affinity_kcal_mol": result.get("binding_affinity_kcal_mol", 0),
+                    "consensus_affinity_kcal_mol": result.get("consensus_affinity_kcal_mol", 0),
+                    "consensus_uncertainty_kcal_mol": result.get("consensus_uncertainty_kcal_mol", 0),
                     "timestamp": result.get("timestamp", None),
                     "mutation": result.get("mutation", "WT")
                 })
