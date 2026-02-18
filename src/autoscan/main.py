@@ -1,5 +1,6 @@
 import typer
 from pathlib import Path
+import math
 
 from autoscan.docking.vina import VinaEngine
 from autoscan.utils.dependency_check import ensure_dependencies
@@ -59,8 +60,6 @@ def validate_coordinates(center_x: float, center_y: float, center_z: float) -> N
     Raises:
         typer.BadParameter: If any coordinate is invalid
     """
-    import math
-    
     coords = {"center_x": center_x, "center_y": center_y, "center_z": center_z}
     
     for name, value in coords.items():
@@ -73,11 +72,11 @@ def validate_coordinates(center_x: float, center_y: float, center_z: float) -> N
 
 @app.command()
 def dock(
-    receptor: str = typer.Option(..., help="Path to Receptor PDBQT"),
-    ligand: str = typer.Option(..., help="Path to Ligand PDBQT"),
-    center_x: float = typer.Option(..., help="Pocket Center X"),
-    center_y: float = typer.Option(..., help="Pocket Center Y"),
-    center_z: float = typer.Option(..., help="Pocket Center Z")
+    receptor: str = typer.Option(..., help="Path to Receptor PDBQT", metavar="RECEPTOR.pdbqt"),
+    ligand: str = typer.Option(..., help="Path to Ligand PDBQT", metavar="LIGAND.pdbqt"),
+    center_x: float = typer.Option(..., help="Binding pocket center X coordinate", metavar="X"),
+    center_y: float = typer.Option(..., help="Binding pocket center Y coordinate", metavar="Y"),
+    center_z: float = typer.Option(..., help="Binding pocket center Z coordinate", metavar="Z")
 ):
     """
     Run the AutoScan Docking Protocol.
@@ -87,29 +86,35 @@ def dock(
             --center-x 10.5 --center-y 20.3 --center-z 15.8
     """
     try:
+        console.log("="*80)
         console.log("Initializing AutoScan Docking Module...")
+        console.log("="*80)
 
         # ====== INPUT VALIDATION (Integrity Check) ======
+        console.log("\n[1/4] Validating Input Files...")
         receptor_path = validate_pdbqt_file(receptor, "Receptor")
         ligand_path = validate_pdbqt_file(ligand, "Ligand")
+        
+        console.log("[2/4] Validating Coordinates...")
         validate_coordinates(center_x, center_y, center_z)
         
-        console.log(f"✓ Receptor: {receptor_path}")
-        console.log(f"✓ Ligand: {ligand_path}")
-        console.log(f"✓ Center: ({center_x}, {center_y}, {center_z})")
+        console.log("\n✓ Receptor: " + str(receptor_path))
+        console.log("✓ Ligand:   " + str(ligand_path))
+        console.log(f"✓ Center:   ({center_x}, {center_y}, {center_z})")
 
+        console.log("\n[3/4] Checking Dependencies...")
         ensure_dependencies()
 
-        # 1. Physics Check (Grid Box)
+        # Physics Check (Grid Box)
         # Note: In a real run, you'd load the ligand to calculate size
         # For CLI, we pass explicit center, but logic handles size internally
 
+        console.log("\n[4/4] Running Docking Engine...")
         engine = VinaEngine(str(receptor_path), str(ligand_path))
-
-        # 2. Run Validation Logic
         score = engine.run(center=[center_x, center_y, center_z])
 
-        console.success(f"Docking Complete! Affinity: {score} kcal/mol")
+        console.success(f"\nDocking Complete! Binding Affinity: {score} kcal/mol")
+        console.log("="*80)
 
     except typer.BadParameter:
         # Re-raise Typer validation errors (will show clean error message)
