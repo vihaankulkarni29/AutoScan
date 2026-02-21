@@ -1,6 +1,6 @@
 # ✅ Implementation Complete: Consensus Scoring & Flexible Docking
 
-## 📋 Summary
+## 📋 Summary Report
 
 Successfully exposed consensus scoring and flexible docking features to the CLI of AutoScan v1.0. These enhancements address the "Hypersensitivity" artifact in virtual screening and provide more accurate binding affinity predictions for resistance studies.
 
