@@ -44,7 +44,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y openbabel autoscan-vina
+          sudo apt-get install -y openbabel || true
       
       - name: Install Python dependencies
         run: |
