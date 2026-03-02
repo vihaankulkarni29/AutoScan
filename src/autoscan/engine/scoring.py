@@ -132,9 +132,7 @@ class VinaScorer(Scorer):
         ]
 
         try:
-            result = subprocess.run(
-                cmd, check=True, capture_output=True, text=True, timeout=60
-            )
+            result = subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=60)
             output = result.stdout + result.stderr
 
             # Parse binding affinity from stdout
@@ -165,9 +163,7 @@ class GNINAScorer(Scorer):
         if self.available:
             logger.info("GNINA scorer available")
         else:
-            logger.warning(
-                "GNINA not found. Install from: https://github.com/gnina/gnina"
-            )
+            logger.warning("GNINA not found. Install from: https://github.com/gnina/gnina")
 
     def score(
         self,
@@ -201,9 +197,7 @@ class GNINAScorer(Scorer):
         ]
 
         try:
-            result = subprocess.run(
-                cmd, check=True, capture_output=True, text=True, timeout=120
-            )
+            result = subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=120)
             output = result.stdout + result.stderr
 
             # Parse CNN affinity score
@@ -260,9 +254,7 @@ class RFScoreScorer(Scorer):
         cmd = [self.executable, str(receptor_pdbqt), str(ligand_pdbqt)]
 
         try:
-            result = subprocess.run(
-                cmd, check=True, capture_output=True, text=True, timeout=120
-            )
+            result = subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=120)
             output = result.stdout + result.stderr
 
             # Parse RF-Score prediction (format varies)
@@ -302,9 +294,7 @@ class ConsensusScorer:
         if rf_score.available:
             self.scorers["rf_score"] = rf_score
 
-        logger.info(
-            f"Consensus scorer initialized with: {', '.join(self.scorers.keys())}"
-        )
+        logger.info(f"Consensus scorer initialized with: {', '.join(self.scorers.keys())}")
 
     def score(
         self,
@@ -355,14 +345,10 @@ class ConsensusScorer:
             raise RuntimeError("No scorers produced valid results")
 
         # Calculate consensus
-        consensus_affinity = self._calculate_consensus(
-            list(individual_scores.values()), method
-        )
+        consensus_affinity = self._calculate_consensus(list(individual_scores.values()), method)
 
         # Calculate uncertainty (standard deviation)
-        uncertainty = self._calculate_uncertainty(
-            list(individual_scores.values())
-        )
+        uncertainty = self._calculate_uncertainty(list(individual_scores.values()))
 
         all_available = len(failed_scorers) == 0
 
@@ -374,9 +360,7 @@ class ConsensusScorer:
             all_available=all_available,
         )
 
-        logger.info(
-            f"Consensus: {consensus_affinity:.2f} ± {uncertainty:.2f} kcal/mol"
-        )
+        logger.info(f"Consensus: {consensus_affinity:.2f} ± {uncertainty:.2f} kcal/mol")
 
         return result
 
@@ -407,7 +391,3 @@ class ConsensusScorer:
         import statistics
 
         return statistics.stdev(scores)
-
-
-
-

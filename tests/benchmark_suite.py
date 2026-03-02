@@ -55,14 +55,49 @@ TARGETS = {
     "1SQN": {"pdb": "1SQN", "ligand": "PRG", "category": "Steroid", "mode": "online"},
     "1OQA": {"pdb": "1OQA", "ligand": "BTN", "category": "Bio-tool", "mode": "online"},
     "4DJU": {"pdb": "4DJU", "ligand": "032", "category": "Cancer", "mode": "online"},
-
     # === Phase 1 Control Set (Calibration) ===
-    "1HVR": {"pdb": "1HVR", "ligand": "XK2", "category": "HIV-Protease", "ref_energy": -21.77, "mode": "local"},
-    "1STP": {"pdb": "1STP", "ligand": "BTN", "category": "Streptavidin", "ref_energy": -9.10, "mode": "local"},
-    "3PTB": {"pdb": "3PTB", "ligand": "BEN", "category": "Trypsin", "ref_energy": -6.42, "mode": "local"},
-    "1AID": {"pdb": "1AID", "ligand": "THK", "category": "HIV-Protease", "ref_energy": -17.56, "mode": "local"},
-    "2J7E": {"pdb": "2J7E", "ligand": "GI2", "category": "Kinase", "ref_energy": -10.03, "mode": "local"},
-    "1TNH": {"pdb": "1TNH", "ligand": "FBA", "category": "Thermolysin", "ref_energy": -5.33, "mode": "local"},
+    "1HVR": {
+        "pdb": "1HVR",
+        "ligand": "XK2",
+        "category": "HIV-Protease",
+        "ref_energy": -21.77,
+        "mode": "local",
+    },
+    "1STP": {
+        "pdb": "1STP",
+        "ligand": "BTN",
+        "category": "Streptavidin",
+        "ref_energy": -9.10,
+        "mode": "local",
+    },
+    "3PTB": {
+        "pdb": "3PTB",
+        "ligand": "BEN",
+        "category": "Trypsin",
+        "ref_energy": -6.42,
+        "mode": "local",
+    },
+    "1AID": {
+        "pdb": "1AID",
+        "ligand": "THK",
+        "category": "HIV-Protease",
+        "ref_energy": -17.56,
+        "mode": "local",
+    },
+    "2J7E": {
+        "pdb": "2J7E",
+        "ligand": "GI2",
+        "category": "Kinase",
+        "ref_energy": -10.03,
+        "mode": "local",
+    },
+    "1TNH": {
+        "pdb": "1TNH",
+        "ligand": "FBA",
+        "category": "Thermolysin",
+        "ref_energy": -5.33,
+        "mode": "local",
+    },
 }
 
 BENCHMARK_DATA_DIR = Path(__file__).parent / "benchmark_data"
@@ -80,11 +115,8 @@ WORK_DIR.mkdir(parents=True, exist_ok=True)
 
 logging.basicConfig(
     level=logging.INFO,
-    format='[%(asctime)s] %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(LOG_FILE),
-        logging.StreamHandler()
-    ]
+    format="[%(asctime)s] %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.FileHandler(LOG_FILE), logging.StreamHandler()],
 )
 logger = logging.getLogger(__name__)
 
@@ -92,8 +124,10 @@ logger = logging.getLogger(__name__)
 # Helper Classes & Functions
 # ============================================================================
 
+
 class SingleLigandSelector(Select):
     """Select a single ligand residue by chain ID and residue ID."""
+
     def __init__(self, chain_id: str, residue_id: Tuple):
         self.chain_id = chain_id
         self.residue_id = residue_id
@@ -107,6 +141,7 @@ class SingleLigandSelector(Select):
 
 class ReceptorSelector(Select):
     """Select all atoms except ligand residue name and water/ions."""
+
     def __init__(self, lig_resname: str):
         self.lig_resname = lig_resname.strip()
 
@@ -191,7 +226,9 @@ def parse_pdbqt_coords(pdbqt_file: Path) -> Optional[np.ndarray]:
 def strip_pdbqt_receptor(pdbqt_path: Path) -> None:
     """Remove BRANCH/ROOT tags, keep only ATOM/HETATM records."""
     lines = pdbqt_path.read_text(encoding="utf-8").splitlines()
-    cleaned = [line for line in lines if line.startswith("REMARK") or line.startswith(("ATOM", "HETATM"))]
+    cleaned = [
+        line for line in lines if line.startswith("REMARK") or line.startswith(("ATOM", "HETATM"))
+    ]
     pdbqt_path.write_text("\n".join(cleaned) + "\n", encoding="utf-8")
 
 
@@ -311,10 +348,11 @@ def run_vina_docking(
 # Main Benchmark Engine
 # ============================================================================
 
+
 def run_benchmark(mode: str = "local", targets: Optional[list] = None):
     """
     Execute the unified benchmark suite.
-    
+
     Args:
         mode: "local" (benchmark_data/) or "online" (RCSB download)
         targets: List of PDB IDs to test. If None, test all.
@@ -336,13 +374,15 @@ def run_benchmark(mode: str = "local", targets: Optional[list] = None):
         test_targets = {k: TARGETS[k] for k in targets if k in TARGETS}
 
     print("\n" + "=" * 120)
-    print(f"{'Target':<12} {'Ligand':<8} {'Category':<20} {'Crystal':<12} {'Random':<12} {'RMSD':<8} {'Status':<15}")
+    print(
+        f"{'Target':<12} {'Ligand':<8} {'Category':<20} {'Crystal':<12} {'Random':<12} {'RMSD':<8} {'Status':<15}"
+    )
     print("=" * 120)
 
     for pdb_id, config in test_targets.items():
         logger.info(f"\n{'='*60}")
         logger.info(f"Processing {pdb_id} ({config['ligand']}) - {config['category']}")
-        logger.info('='*60)
+        logger.info("=" * 60)
 
         target_dir = WORK_DIR / pdb_id
         target_dir.mkdir(exist_ok=True)
@@ -353,12 +393,18 @@ def run_benchmark(mode: str = "local", targets: Optional[list] = None):
             if mode == "online":
                 if not download_pdb(pdb_id, pdb_file):
                     logger.warning(f"SKIP: {pdb_id} - Download failed")
-                    print(f"{pdb_id:<12} {config['ligand']:<8} {config['category']:<20} {'SKIP':<12} {'SKIP':<12} {'-':<8} {'ERROR':<15}")
-                    results.append({"PDB_ID": pdb_id, "Status": "ERROR", "Reason": "Download failed"})
+                    print(
+                        f"{pdb_id:<12} {config['ligand']:<8} {config['category']:<20} {'SKIP':<12} {'SKIP':<12} {'-':<8} {'ERROR':<15}"
+                    )
+                    results.append(
+                        {"PDB_ID": pdb_id, "Status": "ERROR", "Reason": "Download failed"}
+                    )
                     continue
             else:
                 logger.warning(f"SKIP: {pdb_id} - PDB file not found in {BENCHMARK_DATA_DIR}")
-                print(f"{pdb_id:<12} {config['ligand']:<8} {config['category']:<20} {'SKIP':<12} {'SKIP':<12} {'-':<8} {'ERROR':<15}")
+                print(
+                    f"{pdb_id:<12} {config['ligand']:<8} {config['category']:<20} {'SKIP':<12} {'SKIP':<12} {'-':<8} {'ERROR':<15}"
+                )
                 results.append({"PDB_ID": pdb_id, "Status": "ERROR", "Reason": "PDB not found"})
                 continue
 
@@ -369,8 +415,16 @@ def run_benchmark(mode: str = "local", targets: Optional[list] = None):
 
             if selection is None:
                 logger.warning(f"SKIP: {pdb_id} - Ligand {config['ligand']} not found")
-                print(f"{pdb_id:<12} {config['ligand']:<8} {config['category']:<20} {'SKIP':<12} {'SKIP':<12} {'-':<8} {'ERROR':<15}")
-                results.append({"PDB_ID": pdb_id, "Status": "ERROR", "Reason": f"Ligand {config['ligand']} not found"})
+                print(
+                    f"{pdb_id:<12} {config['ligand']:<8} {config['category']:<20} {'SKIP':<12} {'SKIP':<12} {'-':<8} {'ERROR':<15}"
+                )
+                results.append(
+                    {
+                        "PDB_ID": pdb_id,
+                        "Status": "ERROR",
+                        "Reason": f"Ligand {config['ligand']} not found",
+                    }
+                )
                 continue
 
             chain_id, residue_id = selection
@@ -390,12 +444,16 @@ def run_benchmark(mode: str = "local", targets: Optional[list] = None):
 
             if not pdb_to_pdbqt_obabel(ligand_pdb, ligand_pdbqt_native):
                 logger.error(f"Failed to convert ligand PDB→PDBQT")
-                results.append({"PDB_ID": pdb_id, "Status": "ERROR", "Reason": "Ligand conversion failed"})
+                results.append(
+                    {"PDB_ID": pdb_id, "Status": "ERROR", "Reason": "Ligand conversion failed"}
+                )
                 continue
 
             if not pdb_to_pdbqt_obabel(receptor_pdb, receptor_pdbqt):
                 logger.error(f"Failed to convert receptor PDB→PDBQT")
-                results.append({"PDB_ID": pdb_id, "Status": "ERROR", "Reason": "Receptor conversion failed"})
+                results.append(
+                    {"PDB_ID": pdb_id, "Status": "ERROR", "Reason": "Receptor conversion failed"}
+                )
                 continue
 
             strip_pdbqt_receptor(receptor_pdbqt)
@@ -405,36 +463,50 @@ def run_benchmark(mode: str = "local", targets: Optional[list] = None):
             logger.info("TEST A: Crystal Pose Docking (Baseline)")
             output_baseline = target_dir / "output_baseline.pdbqt"
             score_baseline, status_baseline = run_vina_docking(
-                receptor_pdbqt, ligand_pdbqt_native, output_baseline,
-                buffer_angstroms=15.0, exhaustiveness=32
+                receptor_pdbqt,
+                ligand_pdbqt_native,
+                output_baseline,
+                buffer_angstroms=15.0,
+                exhaustiveness=32,
             )
 
             if score_baseline is None:
                 logger.warning(f"Baseline docking failed")
-                results.append({"PDB_ID": pdb_id, "Status": "ERROR", "Reason": "Baseline docking failed"})
+                results.append(
+                    {"PDB_ID": pdb_id, "Status": "ERROR", "Reason": "Baseline docking failed"}
+                )
                 continue
 
-            logger.info(f"Baseline affinity: {score_baseline:.3f} kcal/mol (Status: {status_baseline})")
+            logger.info(
+                f"Baseline affinity: {score_baseline:.3f} kcal/mol (Status: {status_baseline})"
+            )
 
             # === RUN B: Randomized Docking (Stress Test) ===
             logger.info("TEST B: Randomized Pose Docking (Stress Test)")
             ligand_pdbqt_random = target_dir / "ligand_rand.pdbqt"
             if not randomize_pose(ligand_pdbqt_native, ligand_pdbqt_random, trans=2.0):
                 logger.warning(f"Failed to randomize pose")
-                results.append({"PDB_ID": pdb_id, "Status": "ERROR", "Reason": "Randomization failed"})
+                results.append(
+                    {"PDB_ID": pdb_id, "Status": "ERROR", "Reason": "Randomization failed"}
+                )
                 continue
 
             ensure_pdbqt_ligand(ligand_pdbqt_random)
 
             output_random = target_dir / "output_random.pdbqt"
             score_random, status_random = run_vina_docking(
-                receptor_pdbqt, ligand_pdbqt_random, output_random,
-                buffer_angstroms=15.0, exhaustiveness=32
+                receptor_pdbqt,
+                ligand_pdbqt_random,
+                output_random,
+                buffer_angstroms=15.0,
+                exhaustiveness=32,
             )
 
             if score_random is None:
                 logger.warning(f"Random docking failed")
-                results.append({"PDB_ID": pdb_id, "Status": "ERROR", "Reason": "Random docking failed"})
+                results.append(
+                    {"PDB_ID": pdb_id, "Status": "ERROR", "Reason": "Random docking failed"}
+                )
                 continue
 
             logger.info(f"Random affinity: {score_random:.3f} kcal/mol (Status: {status_random})")
@@ -445,7 +517,10 @@ def run_benchmark(mode: str = "local", targets: Optional[list] = None):
                 result_status = "CLASH"
             elif ref_energy is not None:
                 tolerance = 1.0
-                if abs(score_baseline - ref_energy) <= tolerance and abs(score_random - ref_energy) <= tolerance:
+                if (
+                    abs(score_baseline - ref_energy) <= tolerance
+                    and abs(score_random - ref_energy) <= tolerance
+                ):
                     result_status = "PASS"
                 else:
                     result_status = "FAIL"
@@ -455,22 +530,28 @@ def run_benchmark(mode: str = "local", targets: Optional[list] = None):
             # Compute RMSD (simple estimate: difference in scores)
             rmsd_equiv = abs(score_baseline - score_random)
 
-            print(f"{pdb_id:<12} {config['ligand']:<8} {config['category']:<20} {score_baseline:<12.3f} {score_random:<12.3f} {rmsd_equiv:<8.3f} {result_status:<15}")
+            print(
+                f"{pdb_id:<12} {config['ligand']:<8} {config['category']:<20} {score_baseline:<12.3f} {score_random:<12.3f} {rmsd_equiv:<8.3f} {result_status:<15}"
+            )
 
-            results.append({
-                "PDB_ID": pdb_id,
-                "Ligand": config["ligand"],
-                "Category": config["category"],
-                "Crystal_Score": f"{score_baseline:.3f}",
-                "Random_Score": f"{score_random:.3f}",
-                "Ref_Energy": f"{ref_energy:.3f}" if ref_energy else "N/A",
-                "RMSD_Equiv": f"{rmsd_equiv:.3f}",
-                "Status": result_status,
-            })
+            results.append(
+                {
+                    "PDB_ID": pdb_id,
+                    "Ligand": config["ligand"],
+                    "Category": config["category"],
+                    "Crystal_Score": f"{score_baseline:.3f}",
+                    "Random_Score": f"{score_random:.3f}",
+                    "Ref_Energy": f"{ref_energy:.3f}" if ref_energy else "N/A",
+                    "RMSD_Equiv": f"{rmsd_equiv:.3f}",
+                    "Status": result_status,
+                }
+            )
 
         except Exception as e:
             logger.error(f"Exception processing {pdb_id}: {e}")
-            print(f"{pdb_id:<12} {config['ligand']:<8} {config['category']:<20} {'ERROR':<12} {'ERROR':<12} {'-':<8} {'EXCEPTION':<15}")
+            print(
+                f"{pdb_id:<12} {config['ligand']:<8} {config['category']:<20} {'ERROR':<12} {'ERROR':<12} {'-':<8} {'EXCEPTION':<15}"
+            )
             results.append({"PDB_ID": pdb_id, "Status": "ERROR", "Reason": str(e)})
 
     print("=" * 120 + "\n")
@@ -512,8 +593,12 @@ def generate_report(results: list, targets: dict):
         f.write(f"**Workspace:** {WORK_DIR}\n\n")
 
         f.write("## Results Table\n\n")
-        f.write("| Target | Ligand | Category | Crystal (kcal/mol) | Random (kcal/mol) | Ref Energy | RMSD | Status |\n")
-        f.write("|--------|--------|----------|-------------------|-------------------|---------|------|--------|\n")
+        f.write(
+            "| Target | Ligand | Category | Crystal (kcal/mol) | Random (kcal/mol) | Ref Energy | RMSD | Status |\n"
+        )
+        f.write(
+            "|--------|--------|----------|-------------------|-------------------|---------|------|--------|\n"
+        )
 
         for r in results:
             f.write(
@@ -533,19 +618,16 @@ def generate_report(results: list, targets: dict):
 # CLI Entry Point
 # ============================================================================
 
+
 def main():
     parser = argparse.ArgumentParser(description="AutoScan Benchmark Suite v2.0")
     parser.add_argument(
         "--mode",
         choices=["local", "online"],
         default="local",
-        help="Execution mode: local (benchmark_data/) or online (RCSB)"
+        help="Execution mode: local (benchmark_data/) or online (RCSB)",
     )
-    parser.add_argument(
-        "--targets",
-        nargs="+",
-        help="Specific targets to test (default: all)"
-    )
+    parser.add_argument("--targets", nargs="+", help="Specific targets to test (default: all)")
 
     args = parser.parse_args()
     run_benchmark(mode=args.mode, targets=args.targets)

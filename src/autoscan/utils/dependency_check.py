@@ -64,7 +64,7 @@ def _read_dependencies(pyproject_path: Path) -> list[str]:
         if in_block:
             if stripped.startswith("]"):
                 break
-            if stripped.startswith(("\"", "'")):
+            if stripped.startswith(('"', "'")):
                 deps.append(stripped.strip().strip(",").strip("\"'"))
     return deps
 
@@ -114,9 +114,7 @@ def _check_python_dependencies() -> list[str]:
         try:
             installed = metadata.version(name)
         except metadata.PackageNotFoundError:
-            issues.append(
-                f"Missing Python dependency: {name} (required {op}{version})"
-            )
+            issues.append(f"Missing Python dependency: {name} (required {op}{version})")
             continue
         if not _compare_versions(installed, version, op):
             issues.append(
@@ -218,7 +216,7 @@ def _conda_run(command: list[str]) -> subprocess.CompletedProcess[str]:
     # If already in a conda environment, just run the command directly
     if _in_conda_environment():
         return subprocess.run(command, capture_output=True, text=True, check=False)
-    
+
     conda_exe = _conda_executable()
     if not conda_exe:
         raise FileNotFoundError("Conda not available")
@@ -230,15 +228,15 @@ def _conda_package_version(package: str) -> str | None:
     conda_exe = _conda_executable()
     if not conda_exe:
         return None
-    
+
     # If already in a conda environment, query the current environment
     env_name = None if _in_conda_environment() else _CONDA_ENV_NAME
-    
+
     if env_name:
         cmd = [conda_exe, "list", "-n", env_name, package, "--json"]
     else:
         cmd = [conda_exe, "list", package, "--json"]
-    
+
     result = subprocess.run(cmd, capture_output=True, text=True, check=False)
     if result.returncode != 0:
         return None
@@ -291,7 +289,12 @@ def _detect_version_from_output(output: str) -> str | None:
 
 
 def _detect_command_version(command: str) -> str | None:
-    for args in ([command, "--version"], [command, "--help"], [command, "-V"], [command, "-version"]):
+    for args in (
+        [command, "--version"],
+        [command, "--help"],
+        [command, "-V"],
+        [command, "-version"],
+    ):
         try:
             result = subprocess.run(
                 args,
@@ -315,9 +318,7 @@ def _check_vina(repo_root: Path) -> list[str]:
     issues: list[str] = []
     vina_path = _vina_binary_path(repo_root)
     if not vina_path.exists():
-        issues.append(
-            f"Missing Vina binary in repo: {vina_path}. Run setup_env.py to install."
-        )
+        issues.append(f"Missing Vina binary in repo: {vina_path}. Run setup_env.py to install.")
         return issues
 
     version = _detect_command_version(str(vina_path))
@@ -334,10 +335,10 @@ def _check_vina(repo_root: Path) -> list[str]:
 def _check_obabel() -> list[str]:
     issues: list[str] = []
     obabel_exe = os.environ.get("OBABEL_EXE", "obabel")
-    
+
     # Try to get version from conda package first (most reliable)
     version = _conda_package_version("openbabel")
-    
+
     # If not from conda, try to detect from binary
     if not version:
         if not (Path(obabel_exe).exists() or shutil.which(obabel_exe)):

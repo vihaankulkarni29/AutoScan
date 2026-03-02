@@ -42,6 +42,7 @@ class PrepareVina:
         """Check if Meeko is available."""
         try:
             import meeko
+
             return True
         except ImportError:
             return False
@@ -78,21 +79,15 @@ class PrepareVina:
         # Try Meeko first if available and requested
         if self.use_meeko and self.meeko_available:
             try:
-                return self._pdb_to_pdbqt_meeko(
-                    pdb_file, output_file, molecule_type
-                )
+                return self._pdb_to_pdbqt_meeko(pdb_file, output_file, molecule_type)
             except Exception as e:
-                logger.warning(
-                    f"Meeko conversion failed: {e}. Falling back to OpenBabel."
-                )
+                logger.warning(f"Meeko conversion failed: {e}. Falling back to OpenBabel.")
                 # Fall through to OpenBabel
 
         # Fallback to OpenBabel
         return self._pdb_to_pdbqt_obabel(pdb_file, output_file)
 
-    def _pdb_to_pdbqt_meeko(
-        self, pdb_file: Path, output_file: Path, molecule_type: str
-    ) -> Path:
+    def _pdb_to_pdbqt_meeko(self, pdb_file: Path, output_file: Path, molecule_type: str) -> Path:
         """
         Convert PDB to PDBQT using Meeko (better charge assignment).
 
@@ -160,7 +155,7 @@ class PrepareVina:
                 "--partialcharge",  # Add partial charge calculation
                 "gasteiger",  # Use Gasteiger-Marsili charges
             ]
-            
+
             result = subprocess.run(
                 cmd,
                 check=True,
@@ -172,13 +167,9 @@ class PrepareVina:
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"OpenBabel conversion failed: {e.stderr}")
         except FileNotFoundError:
-            raise RuntimeError(
-                "obabel not found. Please install OpenBabel via apt-get or conda."
-            )
+            raise RuntimeError("obabel not found. Please install OpenBabel via apt-get or conda.")
 
-    def prepare_receptor(
-        self, pdb_file: Path, add_hydrogens: bool = True
-    ) -> Path:
+    def prepare_receptor(self, pdb_file: Path, add_hydrogens: bool = True) -> Path:
         """
         Prepare receptor for docking with pH-aware protonation.
 
@@ -194,9 +185,7 @@ class PrepareVina:
         if add_hydrogens:
             logger.info(f"Preparing receptor with pH-aware protonation (pH={self.ph})")
             # Meeko handles hydrogen addition internally
-            pdbqt_file = self.pdb_to_pdbqt(
-                pdb_file, molecule_type="receptor"
-            )
+            pdbqt_file = self.pdb_to_pdbqt(pdb_file, molecule_type="receptor")
         else:
             pdbqt_file = self.pdb_to_pdbqt(pdb_file, molecule_type="receptor")
 
@@ -327,9 +316,7 @@ class PrepareVina:
 
             # Check for charge information (Q column in PDBQT)
             lines = content.split("\n")
-            atom_lines = [
-                line for line in lines if line.startswith(("ATOM", "HETATM"))
-            ]
+            atom_lines = [line for line in lines if line.startswith(("ATOM", "HETATM"))]
 
             if not atom_lines:
                 return False, "No valid atom records"
@@ -338,9 +325,7 @@ class PrepareVina:
             has_charges = any(len(line) >= 70 for line in atom_lines)
 
             if not has_charges:
-                logger.warning(
-                    "PDBQT may be missing partial charge information"
-                )
+                logger.warning("PDBQT may be missing partial charge information")
 
             logger.info(f"✓ PDBQT validation passed: {pdbqt_file}")
             return True, "Valid PDBQT file"
@@ -422,9 +407,7 @@ class PrepareVina:
             )
 
     @staticmethod
-    def mutate_residue(
-        pdb_file: Path, chain_id: str, residue_num: int, new_aa: str
-    ) -> Path:
+    def mutate_residue(pdb_file: Path, chain_id: str, residue_num: int, new_aa: str) -> Path:
         """
         Mutate a residue in a PDB structure in silico using BioPython.
 
@@ -445,9 +428,7 @@ class PrepareVina:
 
         new_aa_3 = PrepareVina._normalize_aa(new_aa)
 
-        logger.info(
-            f"Mutating {pdb_file}: Chain {chain_id}, Res {residue_num} -> {new_aa_3}"
-        )
+        logger.info(f"Mutating {pdb_file}: Chain {chain_id}, Res {residue_num} -> {new_aa_3}")
 
         try:
             parser = PDB.PDBParser(QUIET=True)
@@ -468,7 +449,3 @@ class PrepareVina:
             return output_file
         except Exception as e:
             raise RuntimeError(f"Mutation failed: {e}")
-
-
-
-

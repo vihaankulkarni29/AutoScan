@@ -24,11 +24,11 @@ GHOST_FILE = STRESS_DATA_DIR / "ghost.pdbqt"
 def setup_stress_data():
     """Create dummy test files."""
     STRESS_DATA_DIR.mkdir(parents=True, exist_ok=True)
-    
+
     # Create a fake text file (wrong format)
     with open(BAD_FILE, "w") as f:
         f.write("This is not a protein structure. Just plain text.")
-    
+
     print(f"✓ Created {BAD_FILE}")
     print(f"✓ Ghost file path ready (will not create): {GHOST_FILE}")
 
@@ -42,14 +42,17 @@ def run_cli(args):
     # The Typer app makes 'dock' the default command
     cmd = [sys.executable, "-m", "autoscan.main"] + args
     print(f"\n  Running: {' '.join(cmd)}")
-    
-    result = subprocess.run(cmd, capture_output=True, text=True, cwd="c:\\Users\\Vihaan\\Documents\\AutoDock")
+
+    result = subprocess.run(
+        cmd, capture_output=True, text=True, cwd="c:\\Users\\Vihaan\\Documents\\AutoDock"
+    )
     return result.returncode, result.stdout, result.stderr
 
 
 # ============================================================================
 # TEST CASES
 # ============================================================================
+
 
 def test_missing_file_handling():
     """
@@ -60,26 +63,35 @@ def test_missing_file_handling():
     print("\n" + "=" * 80)
     print("TEST 1: Missing File Handling (Ghost File)")
     print("=" * 80)
-    
-    returncode, stdout, stderr = run_cli([
-        "--receptor", str(GHOST_FILE),
-        "--ligand", str(BAD_FILE),
-        "--center-x", "0", "--center-y", "0", "--center-z", "0"
-    ])
-    
+
+    returncode, stdout, stderr = run_cli(
+        [
+            "--receptor",
+            str(GHOST_FILE),
+            "--ligand",
+            str(BAD_FILE),
+            "--center-x",
+            "0",
+            "--center-y",
+            "0",
+            "--center-z",
+            "0",
+        ]
+    )
+
     print(f"Return Code: {returncode}")
     print(f"STDERR:\n{stderr}")
-    
+
     # Assertions
     try:
         assert returncode != 0, "Should fail with non-zero exit code"
         # Should contain user-friendly error, not python traceback
         assert "Traceback" not in stderr, "Should not contain Python traceback"
         assert (
-            "does not exist" in stderr or 
-            "not found" in stderr or 
-            "cannot find" in stderr or
-            "No such file" in stderr
+            "does not exist" in stderr
+            or "not found" in stderr
+            or "cannot find" in stderr
+            or "No such file" in stderr
         ), "Should mention file not found"
         print("✅ PASS: Caught missing file gracefully with clean error")
         return True
@@ -97,24 +109,33 @@ def test_invalid_format_handling():
     print("\n" + "=" * 80)
     print("TEST 2: Invalid Format Handling (Wrong Extension)")
     print("=" * 80)
-    
-    returncode, stdout, stderr = run_cli([
-        "--receptor", str(BAD_FILE),
-        "--ligand", str(BAD_FILE),
-        "--center-x", "0", "--center-y", "0", "--center-z", "0"
-    ])
-    
+
+    returncode, stdout, stderr = run_cli(
+        [
+            "--receptor",
+            str(BAD_FILE),
+            "--ligand",
+            str(BAD_FILE),
+            "--center-x",
+            "0",
+            "--center-y",
+            "0",
+            "--center-z",
+            "0",
+        ]
+    )
+
     print(f"Return Code: {returncode}")
     print(f"STDERR:\n{stderr}")
-    
+
     try:
         assert returncode != 0, "Should fail with non-zero exit code"
         assert "Traceback" not in stderr, "Should not contain Python traceback"
         assert (
-            ".pdbqt" in stderr or 
-            "extension" in stderr.lower() or 
-            "format" in stderr.lower() or
-            "PDBQT" in stderr
+            ".pdbqt" in stderr
+            or "extension" in stderr.lower()
+            or "format" in stderr.lower()
+            or "PDBQT" in stderr
         ), "Should mention PDBQT file format requirement"
         print("✅ PASS: Caught invalid format gracefully")
         return True
@@ -132,22 +153,22 @@ def test_missing_arguments():
     print("\n" + "=" * 80)
     print("TEST 3: Missing Arguments (Zero State)")
     print("=" * 80)
-    
+
     returncode, stdout, stderr = run_cli([])
-    
+
     print(f"Return Code: {returncode}")
     print(f"STDERR:\n{stderr}")
     print(f"STDOUT:\n{stdout}")
-    
+
     try:
         assert returncode != 0, "Should fail with non-zero exit code"
         # Typer or argparse shows usage message (can be in stdout or stderr)
         combined = stdout + stderr
         assert (
-            "required" in combined.lower() or 
-            "usage" in combined.lower() or 
-            "missing" in combined.lower() or
-            "--help" in combined
+            "required" in combined.lower()
+            or "usage" in combined.lower()
+            or "missing" in combined.lower()
+            or "--help" in combined
         ), "Should show usage/help message for missing args"
         assert "Traceback" not in stderr, "Should not contain Python traceback"
         print("✅ PASS: Handled missing arguments gracefully")
@@ -166,31 +187,40 @@ def test_nan_coordinates():
     print("\n" + "=" * 80)
     print("TEST 4: NaN Coordinates (Physics Violation)")
     print("=" * 80)
-    
+
     # Create a valid dummy receptor for this test
     dummy_receptor = STRESS_DATA_DIR / "dummy.pdbqt"
-    dummy_receptor.write_text("ATOM      1  C   ALA A   1       0.000   0.000   0.000  1.00  0.00           C")
-    
-    returncode, stdout, stderr = run_cli([
-        "--receptor", str(dummy_receptor),
-        "--ligand", str(dummy_receptor),
-        "--center-x", "nan",
-        "--center-y", "0",
-        "--center-z", "0"
-    ])
-    
+    dummy_receptor.write_text(
+        "ATOM      1  C   ALA A   1       0.000   0.000   0.000  1.00  0.00           C"
+    )
+
+    returncode, stdout, stderr = run_cli(
+        [
+            "--receptor",
+            str(dummy_receptor),
+            "--ligand",
+            str(dummy_receptor),
+            "--center-x",
+            "nan",
+            "--center-y",
+            "0",
+            "--center-z",
+            "0",
+        ]
+    )
+
     print(f"Return Code: {returncode}")
     print(f"STDERR:\n{stderr}")
-    
+
     try:
         assert returncode != 0, "Should fail with non-zero exit code"
         # Typer validates types and shows error
         assert "Traceback" not in stderr, "Should not contain Python traceback"
         assert (
-            "Invalid value" in stderr or
-            "not a valid" in stderr or
-            "float" in stderr.lower() or
-            "number" in stderr.lower()
+            "Invalid value" in stderr
+            or "not a valid" in stderr
+            or "float" in stderr.lower()
+            or "number" in stderr.lower()
         ), "Should indicate invalid numeric input"
         print("✅ PASS: Rejected NaN coordinates gracefully")
         return True
@@ -208,23 +238,29 @@ def test_both_files_missing():
     print("\n" + "=" * 80)
     print("TEST 5: Both Files Missing (Multiple Failures)")
     print("=" * 80)
-    
-    returncode, stdout, stderr = run_cli([
-        "--receptor", str(STRESS_DATA_DIR / "missing_receptor.pdbqt"),
-        "--ligand", str(STRESS_DATA_DIR / "missing_ligand.pdbqt"),
-        "--center-x", "0", "--center-y", "0", "--center-z", "0"
-    ])
-    
+
+    returncode, stdout, stderr = run_cli(
+        [
+            "--receptor",
+            str(STRESS_DATA_DIR / "missing_receptor.pdbqt"),
+            "--ligand",
+            str(STRESS_DATA_DIR / "missing_ligand.pdbqt"),
+            "--center-x",
+            "0",
+            "--center-y",
+            "0",
+            "--center-z",
+            "0",
+        ]
+    )
+
     print(f"Return Code: {returncode}")
     print(f"STDERR:\n{stderr}")
-    
+
     try:
         assert returncode != 0, "Should fail with non-zero exit code"
         assert "Traceback" not in stderr, "Should not contain Python traceback"
-        assert (
-            "does not exist" in stderr or 
-            "not found" in stderr
-        ), "Should mention missing file"
+        assert "does not exist" in stderr or "not found" in stderr, "Should mention missing file"
         print("✅ PASS: Caught multiple missing files gracefully")
         return True
     except AssertionError as e:
@@ -236,14 +272,15 @@ def test_both_files_missing():
 # MAIN EXECUTION
 # ============================================================================
 
+
 def main():
     print("\n" + "=" * 80)
     print("TEST SUITE 3: INTEGRITY STRESS TEST (NEGATIVE TESTING)")
     print("=" * 80)
-    
+
     # Setup
     setup_stress_data()
-    
+
     # Run tests
     results = []
     results.append(("Missing File Handling", test_missing_file_handling()))
@@ -251,21 +288,21 @@ def main():
     results.append(("Missing Arguments", test_missing_arguments()))
     results.append(("NaN Coordinates", test_nan_coordinates()))
     results.append(("Both Files Missing", test_both_files_missing()))
-    
+
     # Summary
     print("\n" + "=" * 80)
     print("TEST SUMMARY")
     print("=" * 80)
-    
+
     for test_name, result in results:
         status = "✅ PASS" if result else "❌ FAIL"
         print(f"{status}: {test_name}")
-    
+
     passed = sum(1 for _, r in results if r)
     total = len(results)
-    
+
     print(f"\nTotal: {passed}/{total} tests passed")
-    
+
     if passed == total:
         print("\n🎉 ALL INTEGRITY TESTS PASSED - Tool is robust!")
         return 0

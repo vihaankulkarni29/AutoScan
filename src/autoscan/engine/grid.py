@@ -97,7 +97,3 @@ class GridCalculator:
                 f"Pocket '{pocket_name}' not found. Available: {list(self.pockets.keys())}"
             )
         return self.pockets[pocket_name]
-
-
-
-

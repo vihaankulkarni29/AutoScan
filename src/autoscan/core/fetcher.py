@@ -65,10 +65,4 @@ class PDBFetcher:
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Failed to download {pdb_id}: {e.stderr}")
         except FileNotFoundError:
-            raise RuntimeError(
-                "curl not found. Please install curl or use a PDB file directly."
-            )
-
-
-
-
+            raise RuntimeError("curl not found. Please install curl or use a PDB file directly.")

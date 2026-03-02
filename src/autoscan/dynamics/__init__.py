@@ -29,12 +29,7 @@ from autoscan.dynamics.minimizer import (
     EnergyMinimizer,
     relax_structure,
     is_openmm_available,
-    HAS_OPENMM
+    HAS_OPENMM,
 )
 
-__all__ = [
-    'EnergyMinimizer',
-    'relax_structure',
-    'is_openmm_available',
-    'HAS_OPENMM'
-]
+__all__ = ["EnergyMinimizer", "relax_structure", "is_openmm_available", "HAS_OPENMM"]

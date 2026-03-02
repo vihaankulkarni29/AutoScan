@@ -119,7 +119,7 @@ class VinaWrapper:
             "--exhaustiveness",
             str(exhaustiveness),
         ] + grid_args
-        
+
         # Add flexible side-chain docking if specified
         if flex_pdbqt:
             cmd.extend(["--flex", str(flex_pdbqt)])
@@ -127,18 +127,14 @@ class VinaWrapper:
         logger.info(f"Running Vina: {' '.join(cmd)}")
 
         try:
-            result = subprocess.run(
-                cmd, check=True, capture_output=True, text=True, timeout=300
-            )
+            result = subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=300)
             output_text = result.stdout + result.stderr
 
             # Parse binding affinity from Vina output
             affinity = self._parse_affinity(output_text)
             rmsd_lb, rmsd_ub = self._parse_rmsd(output_text)
 
-            logger.info(
-                f"Docking completed. Binding Affinity: {affinity} kcal/mol"
-            )
+            logger.info(f"Docking completed. Binding Affinity: {affinity} kcal/mol")
 
             docking_result = DockingResult(
                 binding_affinity=affinity,
@@ -258,7 +254,3 @@ class VinaWrapper:
             output["consensus_mode"] = False
 
         return json.dumps(output)
-
-
-
-

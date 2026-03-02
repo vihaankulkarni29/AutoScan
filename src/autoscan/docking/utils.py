@@ -22,7 +22,7 @@ def calculate_grid_box(center_coords: list, ligand_mol=None, buffer_angstroms=15
         coords = [atom.coords for atom in ligand_mol.atoms]
         min_c = np.min(coords, axis=0)
         max_c = np.max(coords, axis=0)
-        
+
         # Box size = (Max - Min) + Buffer
         size = (max_c - min_c) + buffer_angstroms
 
@@ -31,10 +31,10 @@ def calculate_grid_box(center_coords: list, ligand_mol=None, buffer_angstroms=15
         size = np.clip(size, 10.0, 60.0)
 
     return {
-        'center_x': center_coords[0],
-        'center_y': center_coords[1],
-        'center_z': center_coords[2],
-        'size_x': float(size[0]),
-        'size_y': float(size[1]),
-        'size_z': float(size[2])
+        "center_x": center_coords[0],
+        "center_y": center_coords[1],
+        "center_z": center_coords[2],
+        "size_x": float(size[0]),
+        "size_y": float(size[1]),
+        "size_z": float(size[2]),
     }
