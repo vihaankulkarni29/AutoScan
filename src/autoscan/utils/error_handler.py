@@ -13,6 +13,10 @@ class ErrorHandler:
         if not self.quiet:
             print(message)
 
+    def warn(self, message: str) -> None:
+        """Print a warning message to stdout."""
+        print(f"{message}")
+
     def success(self, message: str) -> None:
         print(f"[OK] {message}")
 

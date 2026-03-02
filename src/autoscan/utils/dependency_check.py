@@ -6,7 +6,7 @@ import subprocess
 import sys
 from importlib import metadata
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 
 _REQUIRED_PYTHON = {
@@ -94,8 +94,8 @@ def _compare_versions(installed: str, required: str, op: str) -> bool:
     try:
         from packaging.version import Version
 
-        left = Version(installed)
-        right = Version(required)
+        left: Union["Version", Tuple[int, ...]] = Version(installed)
+        right: Union["Version", Tuple[int, ...]] = Version(required)
     except Exception:
         left = _version_tuple(installed)
         right = _version_tuple(required)
