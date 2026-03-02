@@ -4,6 +4,7 @@ import math
 import json
 import tempfile
 import shutil
+import sys
 from datetime import datetime
 from typing import Optional
 
@@ -126,10 +127,9 @@ def convert_pdb_to_pdbqt(pdb_file: Path) -> Path:
     try:
         prep = PrepareVina(use_meeko=True, ph=7.4)
         pdbqt_file = prep.pdb_to_pdbqt(
-            str(pdb_file),
-            output_file=str(pdb_file.with_suffix(".pdbqt")),
-            add_waters=False,
-            add_hydrogens=True
+            pdb_file,
+            output_file=pdb_file.with_suffix(".pdbqt"),
+            molecule_type="auto"
         )
         return Path(pdbqt_file)
     except Exception as e:
@@ -144,7 +144,7 @@ def save_results_json(results: dict, output_file: Path) -> None:
     output_file.parent.mkdir(parents=True, exist_ok=True)
     with open(output_file, 'w') as f:
         json.dump(results, f, indent=2)
-    console.log(f"✓ Results saved to: {output_file}")
+    console.log(f"[OK] Results saved to: {output_file}")
 
 
 
@@ -215,7 +215,7 @@ def dock(
         
         # Convert PDB to PDBQT if needed
         if receptor_path.suffix.lower() == ".pdb":
-            console.log("  Converting receptor PDB → PDBQT...")
+            console.log("  Converting receptor PDB -> PDBQT...")
             receptor_path = convert_pdb_to_pdbqt(receptor_path)
         elif receptor_path.suffix.lower() != ".pdbqt":
             raise typer.BadParameter(
@@ -224,7 +224,7 @@ def dock(
             )
         
         if ligand_path.suffix.lower() == ".pdb":
-            console.log("  Converting ligand PDB → PDBQT...")
+            console.log("  Converting ligand PDB -> PDBQT...")
             ligand_path = convert_pdb_to_pdbqt(ligand_path)
         elif ligand_path.suffix.lower() != ".pdbqt":
             raise typer.BadParameter(
@@ -248,7 +248,7 @@ def dock(
             # Apply mutation to PDB
             prep = PrepareVina()
             mutant_pdb = prep.mutate_residue(original_pdb, chain_id, residue_num, to_aa)
-            console.log(f"  ✓ Mutation applied: {mutant_pdb}")
+            console.log(f"  [OK] Mutation applied: {mutant_pdb}")
             
             # Energy minimization (optional, requires OpenMM)
             if minimize:
@@ -261,36 +261,42 @@ def dock(
                             output_path=Path(mutant_pdb).with_stem(Path(mutant_pdb).stem + "_minimized")
                         )
                         mutant_pdb = minimized_pdb
-                        console.log(f"  ✓ Minimization complete: {minimized_pdb}")
+                        console.log(f"  [OK] Minimization complete: {minimized_pdb}")
                     except Exception as e:
-                        console.warn(f"  ⚠  Minimization failed: {str(e)} - proceeding with non-minimized structure")
+                        console.warn(f"  [WARN] Minimization failed: {str(e)} - proceeding with non-minimized structure")
                 else:
-                    console.warn(f"  ⚠  Minimization requested but OpenMM not installed - skipping")
+                    console.warn(f"  [WARN] Minimization requested but OpenMM not installed - skipping")
             
             # Convert mutant PDB to PDBQT
             receptor_path = convert_pdb_to_pdbqt(mutant_pdb)
-            console.log(f"  ✓ Mutant structure prepared: {receptor_path}")
+            console.log(f"  [OK] Mutant structure prepared: {receptor_path}")
         
         console.log("\n[2/4] Validating Coordinates...")
         validate_coordinates(center_x, center_y, center_z)
         
-        console.log("\n✓ Receptor: " + str(receptor_path))
-        console.log("✓ Ligand:   " + str(ligand_path))
-        console.log(f"✓ Center:   ({center_x}, {center_y}, {center_z})")
+        console.log("\n[OK] Receptor: " + str(receptor_path))
+        console.log("[OK] Ligand:   " + str(ligand_path))
+        console.log(f"[OK] Center:   ({center_x}, {center_y}, {center_z})")
         if mutation:
-            console.log(f"✓ Mutation: {mutation}")
+            console.log(f"[OK] Mutation: {mutation}")
         if use_consensus:
-            console.log(f"✓ Consensus Scoring: Enabled ({consensus_method})")
+            console.log(f"[OK] Consensus Scoring: Enabled ({consensus_method})")
         if flex:
-            console.log(f"✓ Flexible Docking: {flex}")
-        if minimize:
-            if HAS_OPENMM:
-                console.log(f"✓ Energy Minimization: Enabled ({minimize_iterations} iterations)")
+            console.log(f"[OK] Flexible Docking: {flex}")
+        if mutation:
+            if HAS_OPENMM and minimize:
+                console.log(f"[OK] Energy Minimization: Enabled ({minimize_iterations} iterations)")
             else:
-                console.log(f"⚠  Energy Minimization: Requested but OpenMM not installed (will skip)")
+                console.log(f"[WARN] Energy Minimization: Requested but OpenMM not installed (will skip)")
 
         console.log("\n[3/4] Checking Dependencies...")
-        ensure_dependencies()
+        # Ensure Vina is available (only critical dependency for docking)
+        # Other tools (obabel, pdbfixer, openmm) are optional
+        try:
+            from autoscan.docking.vina import VinaEngine
+            console.log("[OK] Vina engine available")
+        except Exception as e:
+            raise typer.Exit(f"[ERROR] Vina docking engine not available: {e}")
 
         console.log("\n[4/4] Running Docking Engine...")
         
@@ -309,7 +315,13 @@ def dock(
                     param_hint="--flex"
                 )
         
-        engine = VinaEngine(str(receptor_path), str(ligand_path))
+        # Determine Vina executable path
+        vina_exe = "vina"  # Default: look in PATH
+        vina_local = Path(__file__).parent.parent.parent / "tools" / ("vina.exe" if sys.platform.startswith("win") else "vina")
+        if vina_local.exists():
+            vina_exe = str(vina_local)
+        
+        engine = VinaEngine(str(receptor_path), str(ligand_path), vina_executable=vina_exe)
         docking_result = engine.run(
             center=[center_x, center_y, center_z],
             use_consensus=use_consensus,
