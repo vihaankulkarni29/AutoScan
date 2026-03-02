@@ -7,7 +7,7 @@ import re
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 from autoscan.utils import get_logger
 
@@ -224,7 +224,7 @@ class VinaWrapper:
         raise RuntimeError("Could not parse binding affinity from Vina output")
 
     @staticmethod
-    def _parse_rmsd(output: str) -> tuple[float, float]:
+    def _parse_rmsd(output: str) -> Tuple[float, float]:
         """Parse RMSD values from Vina output."""
         match = re.search(r"(RMSD\s+from\s+best\s+mode|lb|ub).*?(\d+\.\d+).*?(\d+\.\d+)", output)
         # Simplified: return 0.0 if not found (Vina output format varies)

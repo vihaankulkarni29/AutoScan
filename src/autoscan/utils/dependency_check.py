@@ -6,6 +6,7 @@ import subprocess
 import sys
 from importlib import metadata
 from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
 
 _REQUIRED_PYTHON = {
@@ -52,9 +53,9 @@ def find_repo_root(start: Path) -> Path:
     return start
 
 
-def _read_dependencies(pyproject_path: Path) -> list[str]:
+def _read_dependencies(pyproject_path: Path) -> List[str]:
     text = pyproject_path.read_text(encoding="utf-8")
-    deps: list[str] = []
+    deps: List[str] = []
     in_block = False
     for line in text.splitlines():
         stripped = line.strip()
@@ -69,7 +70,7 @@ def _read_dependencies(pyproject_path: Path) -> list[str]:
     return deps
 
 
-def _parse_requirement(requirement: str) -> tuple[str, str | None, str | None]:
+def _parse_requirement(requirement: str) -> Tuple[str, Optional[str], Optional[str]]:
     pattern = r"^([A-Za-z0-9_.-]+)(\[[^\]]+\])?\s*([<>=!~]{1,2})\s*([0-9][^;]*)"
     match = re.match(pattern, requirement.strip())
     if match:
@@ -84,7 +85,7 @@ def _parse_requirement(requirement: str) -> tuple[str, str | None, str | None]:
     return name, op, version
 
 
-def _version_tuple(version: str) -> tuple[int, ...]:
+def _version_tuple(version: str) -> Tuple[int, ...]:
     parts = re.split(r"[^0-9]+", version)
     return tuple(int(part) for part in parts if part)
 
@@ -106,8 +107,8 @@ def _compare_versions(installed: str, required: str, op: str) -> bool:
     return False
 
 
-def _check_python_dependencies() -> list[str]:
-    issues: list[str] = []
+def _check_python_dependencies() -> List[str]:
+    issues: List[str] = []
     for name, spec in _REQUIRED_PYTHON.items():
         op = spec["op"]
         version = spec["version"]
@@ -123,17 +124,17 @@ def _check_python_dependencies() -> list[str]:
     return issues
 
 
-def _check_manifest_in_pyproject(pyproject_path: Path) -> list[str]:
+def _check_manifest_in_pyproject(pyproject_path: Path) -> List[str]:
     if not pyproject_path.exists():
         return ["pyproject.toml not found; cannot verify dependency manifest."]
 
     deps = _read_dependencies(pyproject_path)
-    dep_map: dict[str, tuple[str | None, str | None]] = {}
+    dep_map: Dict[str, Tuple[Optional[str], Optional[str]]] = {}
     for requirement in deps:
         name, op, version = _parse_requirement(requirement)
         dep_map[name] = (op, version)
 
-    issues: list[str] = []
+    issues: List[str] = []
     for name, spec in _REQUIRED_PYTHON.items():
         required_op = spec["op"]
         required_version = spec["version"]
@@ -171,12 +172,12 @@ def _check_manifest_in_pyproject(pyproject_path: Path) -> list[str]:
     return issues
 
 
-def _pip_executable() -> list[str]:
+def _pip_executable() -> List[str]:
     return [sys.executable, "-m", "pip"]
 
 
-def _python_install_commands() -> list[list[str]]:
-    commands: list[list[str]] = []
+def _python_install_commands() -> List[List[str]]:
+    commands: List[List[str]] = []
     for name, spec in _REQUIRED_PYTHON.items():
         if spec["op"] == "==":
             requirement = f"{name}=={spec['version']}"
@@ -186,8 +187,8 @@ def _python_install_commands() -> list[list[str]]:
     return commands
 
 
-def _binary_install_hints(repo_root: Path) -> list[str]:
-    hints: list[str] = []
+def _binary_install_hints(repo_root: Path) -> List[str]:
+    hints: List[str] = []
     vina_path = _vina_binary_path(repo_root)
     if not vina_path.exists():
         hints.append("Run: python setup_env.py (downloads AutoDock Vina into tools/)")
@@ -199,7 +200,7 @@ def _binary_install_hints(repo_root: Path) -> list[str]:
     return hints
 
 
-def _conda_executable() -> str | None:
+def _conda_executable() -> Optional[str]:
     conda_exe = os.environ.get("CONDA_EXE")
     if conda_exe and (Path(conda_exe).exists() or shutil.which(conda_exe)):
         return conda_exe
@@ -212,7 +213,7 @@ def _in_conda_environment() -> bool:
     return bool(os.environ.get("CONDA_PREFIX"))
 
 
-def _conda_run(command: list[str]) -> subprocess.CompletedProcess[str]:
+def _conda_run(command: List[str]) -> subprocess.CompletedProcess[str]:
     # If already in a conda environment, just run the command directly
     if _in_conda_environment():
         return subprocess.run(command, capture_output=True, text=True, check=False)
@@ -224,7 +225,7 @@ def _conda_run(command: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(cmd, capture_output=True, text=True, check=False)
 
 
-def _conda_package_version(package: str) -> str | None:
+def _conda_package_version(package: str) -> Optional[str]:
     conda_exe = _conda_executable()
     if not conda_exe:
         return None
@@ -250,14 +251,14 @@ def _conda_package_version(package: str) -> str | None:
     return None
 
 
-def _check_conda() -> list[str]:
-    issues: list[str] = []
+def _check_conda() -> List[str]:
+    issues: List[str] = []
     if not _conda_executable():
         issues.append("Conda not found. Install Miniconda/Anaconda and add conda to PATH.")
     return issues
 
 
-def _install_with_conda(packages: list[str]) -> None:
+def _install_with_conda(packages: List[str]) -> None:
     conda_exe = _conda_executable()
     if not conda_exe:
         return
@@ -281,14 +282,14 @@ def _vina_binary_path(repo_root: Path) -> Path:
     return repo_root / "tools" / "vina"
 
 
-def _detect_version_from_output(output: str) -> str | None:
+def _detect_version_from_output(output: str) -> Optional[str]:
     match = re.search(r"(\d+\.\d+\.\d+)", output)
     if match:
         return match.group(1)
     return None
 
 
-def _detect_command_version(command: str) -> str | None:
+def _detect_command_version(command: str) -> Optional[str]:
     for args in (
         [command, "--version"],
         [command, "--help"],
@@ -314,8 +315,8 @@ def _detect_command_version(command: str) -> str | None:
     return None
 
 
-def _check_vina(repo_root: Path) -> list[str]:
-    issues: list[str] = []
+def _check_vina(repo_root: Path) -> List[str]:
+    issues: List[str] = []
     vina_path = _vina_binary_path(repo_root)
     if not vina_path.exists():
         issues.append(f"Missing Vina binary in repo: {vina_path}. Run setup_env.py to install.")
@@ -332,8 +333,8 @@ def _check_vina(repo_root: Path) -> list[str]:
     return issues
 
 
-def _check_obabel() -> list[str]:
-    issues: list[str] = []
+def _check_obabel() -> List[str]:
+    issues: List[str] = []
     obabel_exe = os.environ.get("OBABEL_EXE", "obabel")
 
     # Try to get version from conda package first (most reliable)
@@ -356,8 +357,8 @@ def _check_obabel() -> list[str]:
     return issues
 
 
-def _check_pdbfixer() -> list[str]:
-    issues: list[str] = []
+def _check_pdbfixer() -> List[str]:
+    issues: List[str] = []
     pdbfixer_exe = os.environ.get("PDBFIXER_EXE", "pdbfixer")
     if not (Path(pdbfixer_exe).exists() or shutil.which(pdbfixer_exe)):
         try:
@@ -394,7 +395,7 @@ def ensure_dependencies() -> None:
     repo_root = find_repo_root(Path(__file__).resolve())
     pyproject_path = repo_root / "pyproject.toml"
 
-    issues: list[str] = []
+    issues: List[str] = []
     issues.extend(_check_conda())
     issues.extend(_check_manifest_in_pyproject(pyproject_path))
     issues.extend(_check_python_dependencies())
@@ -412,7 +413,7 @@ def build_dependencies(*, install_python: bool = True, quiet: bool = False) -> N
     repo_root = find_repo_root(Path(__file__).resolve())
     pyproject_path = repo_root / "pyproject.toml"
 
-    issues: list[str] = []
+    issues: List[str] = []
     issues.extend(_check_conda())
     issues.extend(_check_manifest_in_pyproject(pyproject_path))
     issues.extend(_check_python_dependencies())
