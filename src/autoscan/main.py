@@ -108,12 +108,13 @@ def parse_mutation_string(mutation_str: str) -> tuple:
         )
 
 
-def convert_pdb_to_pdbqt(pdb_file: Path) -> Path:
+def convert_pdb_to_pdbqt(input_file: Path, molecule_type: str = "auto") -> Path:
     """
-    Convert PDB file to PDBQT using PrepareVina.
+    Convert PDB/SDF file to PDBQT using PrepareVina.
 
     Args:
-        pdb_file: Path to PDB file
+        input_file: Path to PDB or SDF file
+        molecule_type: Type of molecule ("receptor", "ligand", or "auto")
 
     Returns:
         Path to converted PDBQT file
@@ -124,12 +125,14 @@ def convert_pdb_to_pdbqt(pdb_file: Path) -> Path:
     try:
         prep = PrepareVina(use_meeko=True, ph=7.4)
         pdbqt_file = prep.pdb_to_pdbqt(
-            pdb_file, output_file=pdb_file.with_suffix(".pdbqt"), molecule_type="auto"
+            input_file,
+            output_file=input_file.with_suffix(".pdbqt"),
+            molecule_type=molecule_type
         )
         return Path(pdbqt_file)
     except Exception as e:
         raise typer.BadParameter(
-            f"Failed to convert PDB to PDBQT: {str(e)}", param_hint="--receptor"
+            f"Failed to convert {input_file} to PDBQT: {str(e)}"
         )
 
 
@@ -144,7 +147,7 @@ def save_results_json(results: dict, output_file: Path) -> None:
 @app.command()
 def dock(
     receptor: str = typer.Option(..., help="Path to Receptor (PDB or PDBQT)", metavar="RECEPTOR"),
-    ligand: str = typer.Option(..., help="Path to Ligand (PDB or PDBQT)", metavar="LIGAND"),
+    ligand: str = typer.Option(..., help="Path to Ligand (PDB, SDF, or PDBQT)", metavar="LIGAND"),
     center_x: float = typer.Option(..., help="Binding pocket center X coordinate", metavar="X"),
     center_y: float = typer.Option(..., help="Binding pocket center Y coordinate", metavar="Y"),
     center_z: float = typer.Option(..., help="Binding pocket center Z coordinate", metavar="Z"),
@@ -219,22 +222,23 @@ def dock(
         if not ligand_path.exists():
             raise typer.BadParameter(f"Ligand file does not exist: {ligand}", param_hint="--ligand")
 
-        # Convert PDB to PDBQT if needed
+        # Convert PDB/SDF to PDBQT if needed (with context-aware molecule routing)
         if receptor_path.suffix.lower() == ".pdb":
-            console.log("  Converting receptor PDB -> PDBQT...")
-            receptor_path = convert_pdb_to_pdbqt(receptor_path)
+            console.log("  Converting receptor PDB → PDBQT...")
+            receptor_path = convert_pdb_to_pdbqt(receptor_path, molecule_type="receptor")
         elif receptor_path.suffix.lower() != ".pdbqt":
             raise typer.BadParameter(
                 f"Receptor must be .pdb or .pdbqt, got: {receptor_path.suffix}",
                 param_hint="--receptor",
             )
 
-        if ligand_path.suffix.lower() == ".pdb":
-            console.log("  Converting ligand PDB -> PDBQT...")
-            ligand_path = convert_pdb_to_pdbqt(ligand_path)
+        if ligand_path.suffix.lower() in [".pdb", ".sdf"]:
+            console.log(f"  Converting ligand {ligand_path.suffix.upper()} → PDBQT...")
+            ligand_path = convert_pdb_to_pdbqt(ligand_path, molecule_type="ligand")
         elif ligand_path.suffix.lower() != ".pdbqt":
             raise typer.BadParameter(
-                f"Ligand must be .pdb or .pdbqt, got: {ligand_path.suffix}", param_hint="--ligand"
+                f"Ligand must be .pdb, .sdf, or .pdbqt, got: {ligand_path.suffix}",
+                param_hint="--ligand"
             )
 
         # Handle mutations if specified

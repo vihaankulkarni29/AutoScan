@@ -76,8 +76,12 @@ class PrepareVina:
 
         logger.info(f"Converting {pdb_file} to PDBQT (pH={self.ph})")
 
-        # Try Meeko first if available and requested
+        # Try Meeko first if available and requested (but route receptors to OpenBabel)
         if self.use_meeko and self.meeko_available:
+            # Route receptors directly to OpenBabel to prevent fragment crashes from Meeko
+            if molecule_type == "receptor":
+                logger.info("Routing receptor directly to OpenBabel for stability...")
+                return self._pdb_to_pdbqt_obabel(pdb_file, output_file)
             try:
                 return self._pdb_to_pdbqt_meeko(pdb_file, output_file, molecule_type)
             except Exception as e:
@@ -105,10 +109,17 @@ class PrepareVina:
         logger.info(f"Using Meeko for enhanced preparation (pH={self.ph})")
 
         try:
-            # Read molecule and ensure explicit hydrogens
-            mol = Chem.MolFromPDBFile(str(pdb_file), removeHs=False)
-            if mol is None:
-                raise RuntimeError(f"RDKit failed to parse PDB: {pdb_file}")
+            # Read molecule based on extension (support PDB and SDF formats)
+            if pdb_file.suffix.lower() == ".sdf":
+                suppl = Chem.SDMolSupplier(str(pdb_file), removeHs=False)
+                mol = next(iter(suppl)) if suppl else None
+                if mol is None or len(suppl) == 0:
+                    raise RuntimeError(f"RDKit failed to parse SDF: {pdb_file}")
+                logger.info(f"✓ SDF file loaded successfully")
+            else:
+                mol = Chem.MolFromPDBFile(str(pdb_file), removeHs=False)
+                if mol is None:
+                    raise RuntimeError(f"RDKit failed to parse PDB: {pdb_file}")
 
             if Chem.AddHs(mol) is not None:
                 mol = Chem.AddHs(mol, addCoords=True)
