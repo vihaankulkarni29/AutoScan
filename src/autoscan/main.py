@@ -179,6 +179,11 @@ def dock(
     minimize_iterations: int = typer.Option(
         1000, help="Maximum iterations for energy minimization", metavar="ITERATIONS"
     ),
+    stiffness: float = typer.Option(
+        500.0,
+        help="Backbone restraint strength (kJ/mol/nm²) for minimization. 500.0 prevents pocket collapse.",
+        metavar="STIFFNESS"
+    ),
 ):
     """
     Run the AutoScan Docking Protocol.
@@ -273,6 +278,7 @@ def dock(
                         minimizer = EnergyMinimizer()
                         minimized_pdb = minimizer.minimize(
                             Path(mutant_pdb),
+                            stiffness=stiffness,
                             output_path=Path(mutant_pdb).with_stem(
                                 Path(mutant_pdb).stem + "_minimized"
                             ),

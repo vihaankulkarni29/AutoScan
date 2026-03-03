@@ -417,46 +417,66 @@ class PrepareVina:
                 f"Expected {expected_aa_3}, found {actual_aa_3}."
             )
 
-    @staticmethod
-    def mutate_residue(pdb_file: Path, chain_id: str, residue_num: int, new_aa: str) -> Path:
+    def mutate_residue(self, pdb_file: Path, chain_id: str, residue_num: int, to_aa: str) -> Path:
         """
-        Mutate a residue in a PDB structure in silico using BioPython.
+        Apply strict 3D physical mutation using PDBFixer with proper sidechain building.
+
+        Uses OpenMM's PDBFixer to mathematically grow new sidechain atoms and add
+        hydrogens at physiological pH, ensuring structural validity.
 
         Args:
             pdb_file: Path to input PDB file.
             chain_id: Chain identifier (e.g., "A").
             residue_num: Residue number to mutate.
-            new_aa: New amino acid (3-letter or 1-letter code, e.g., "GLY" or "G").
+            to_aa: Target amino acid (1-letter or 3-letter code).
 
         Returns:
-            Path to the mutated PDB file (saved as _mutant.pdb).
+            Path to the physically validated mutated PDB file.
 
         Raises:
-            RuntimeError: If mutation fails.
+            RuntimeError: If mutation or atom building fails.
         """
+        from pdbfixer import PDBFixer
+        from openmm.app import PDBFile
+        from Bio.Data import IUPACData
+
         pdb_file = Path(pdb_file)
-        output_file = pdb_file.with_stem(pdb_file.stem + "_mutant")
 
-        new_aa_3 = PrepareVina._normalize_aa(new_aa)
+        # Normalize to 3-letter amino acid code
+        to_aa_upper = to_aa.upper()
+        if len(to_aa_upper) == 1:
+            to_aa_3 = IUPACData.protein_letters_1to3.get(to_aa_upper, to_aa_upper)
+        else:
+            to_aa_3 = to_aa_upper
 
-        logger.info(f"Mutating {pdb_file}: Chain {chain_id}, Res {residue_num} -> {new_aa_3}")
+        mutation_query = f"{chain_id}-{residue_num}-{to_aa_3}"
+        logger.info(f"Applying strict physical mutation via PDBFixer: {mutation_query}")
 
         try:
-            parser = PDB.PDBParser(QUIET=True)
-            structure = parser.get_structure("protein", str(pdb_file))
+            # Load structure with PDBFixer
+            fixer = PDBFixer(filename=str(pdb_file))
 
-            chain = structure[0][chain_id]
-            residue = chain[residue_num]
+            # Apply mutation (PDBFixer handles sidechain geometry)
+            fixer.applyMutations([mutation_query], chain_id)
 
-            # Replace residue with new amino acid
-            residue.resname = new_aa_3
+            # Physically rebuild all missing atoms and geometry
+            fixer.findMissingResidues()
+            fixer.findMissingAtoms()
+            fixer.addMissingAtoms()
 
-            writer = PDB.PPBuilder()
-            io = PDB.PDBIO()
-            io.set_structure(structure)
-            io.save(str(output_file))
+            # Add hydrogens at physiological pH (7.4)
+            fixer.addMissingHydrogens(7.4)
 
-            logger.info(f"Mutated structure saved to: {output_file}")
-            return output_file
+            # Save mutated structure
+            output_path = pdb_file.with_stem(pdb_file.stem + f"_mut{residue_num}")
+            with open(output_path, "w") as f:
+                PDBFile.writeFile(fixer.topology, fixer.positions, f)
+
+            logger.info(f"Physical mutation complete: {output_path}")
+            return output_path
+
         except Exception as e:
-            raise RuntimeError(f"Mutation failed: {e}")
+            logger.error(f"PDBFixer failed to build 3D mutation: {str(e)}")
+            raise RuntimeError(
+                f"Physical mutagenesis failed for {mutation_query}: {str(e)}"
+            )
