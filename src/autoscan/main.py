@@ -75,35 +75,38 @@ def validate_coordinates(center_x: float, center_y: float, center_z: float) -> N
             )
 
 
-def parse_mutation_string(mutation_str: str) -> tuple:
+def parse_mutation_string(mutation_str: str) -> list:
     """
     Parse mutation string in format: CHAIN:RESIDUE:FROM_AA:TO_AA
 
-    Example: A:87:D:G (Chain A, Residue 87, Asp to Gly)
+    Supports comma-separated epistatic networks (multiple mutations).
+
+    Examples:
+        Single mutation: A:87:D:G (Chain A, Residue 87, Asp to Gly)
+        Multiple mutations: A:87:D:G,A:92:G:S (Chain A, Residue 87 and 92)
 
     Args:
-        mutation_str: Mutation specification string
+        mutation_str: Mutation specification string (comma-separated for multiple)
 
     Returns:
-        Tuple of (chain_id, residue_num, from_aa, to_aa)
+        List of tuples: [(chain_id, residue_num, from_aa, to_aa), ...]
 
     Raises:
         typer.BadParameter: If format is invalid
     """
+    mutations = []
     try:
-        parts = mutation_str.split(":")
-        if len(parts) != 4:
-            raise ValueError("Expected format: CHAIN:RESIDUE:FROM_AA:TO_AA")
-
-        chain_id = parts[0]
-        residue_num = int(parts[1])
-        from_aa = parts[2]
-        to_aa = parts[3]
-
-        return chain_id, residue_num, from_aa, to_aa
+        for m in mutation_str.split(","):
+            m = m.strip()
+            parts = m.split(":")
+            if len(parts) != 4:
+                raise ValueError("Expected format: CHAIN:RESIDUE:FROM_AA:TO_AA")
+            mutations.append((parts[0], int(parts[1]), parts[2], parts[3]))
+        return mutations
     except (ValueError, IndexError) as e:
         raise typer.BadParameter(
-            f"Invalid mutation format. Expected: CHAIN:RESIDUE:FROM_AA:TO_AA (e.g., A:87:D:G). Got: {mutation_str}",
+            f"Invalid mutation format. Expected: CHAIN:RESIDUE:FROM_AA:TO_AA (e.g., A:87:D:G). "
+            f"For multiple mutations, use comma-separated: A:87:D:G,A:92:G:S. Got: {mutation_str}",
             param_hint="--mutation",
         )
 
@@ -241,10 +244,10 @@ def dock(
                 param_hint="--ligand"
             )
 
-        # Handle mutations if specified
+        # Handle mutations if specified (supports epistatic networks)
         if mutation:
-            console.log(f"\n  Applying mutation: {mutation}...")
-            chain_id, residue_num, from_aa, to_aa = parse_mutation_string(mutation)
+            console.log(f"\n  Applying mutations: {mutation}...")
+            mutations_list = parse_mutation_string(mutation)
 
             # Read original PDB (before PDBQT conversion)
             original_pdb = Path(receptor).with_suffix(".pdb")
@@ -254,10 +257,13 @@ def dock(
                     param_hint="--mutation",
                 )
 
-            # Apply mutation to PDB
+            # Apply mutations sequentially
             prep = PrepareVina()
-            mutant_pdb = prep.mutate_residue(original_pdb, chain_id, residue_num, to_aa)
-            console.log(f"  [OK] Mutation applied: {mutant_pdb}")
+            mutant_pdb = original_pdb
+            for idx, (chain_id, residue_num, from_aa, to_aa) in enumerate(mutations_list, 1):
+                console.log(f"    [{idx}/{len(mutations_list)}] Mutating {chain_id}:{residue_num} {from_aa}→{to_aa}...")
+                mutant_pdb = prep.mutate_residue(mutant_pdb, chain_id, residue_num, to_aa)
+            console.log(f"  [OK] All {len(mutations_list)} mutations applied. Final structure: {mutant_pdb}")
 
             # Energy minimization (optional, requires OpenMM)
             if minimize:
@@ -283,7 +289,7 @@ def dock(
                     )
 
             # Convert mutant PDB to PDBQT
-            receptor_path = convert_pdb_to_pdbqt(mutant_pdb)
+            receptor_path = convert_pdb_to_pdbqt(mutant_pdb, molecule_type="receptor")
             console.log(f"  [OK] Mutant structure prepared: {receptor_path}")
 
         console.log("\n[2/4] Validating Coordinates...")
