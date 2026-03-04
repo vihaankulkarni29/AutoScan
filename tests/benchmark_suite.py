@@ -319,10 +319,16 @@ def run_vina_docking(
 
         logger.info(f"  Vina box: center={ligand_center}, size={box_size}")
 
+        import platform
+        if platform.system() == "Windows":
+            vina_exec = "tools/vina.exe"
+        else:
+            vina_exec = "vina"
+
         engine = VinaEngine(
             receptor_pdbqt=str(receptor_pdbqt),
             ligand_pdbqt=str(ligand_pdbqt),
-            vina_executable="tools/vina.exe",
+            vina_executable=vina_exec,
         )
 
         score = engine.run(

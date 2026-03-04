@@ -371,10 +371,17 @@ def dock_molecule(
 
         output_pdbqt = ligand_pdbqt.with_stem(ligand_pdbqt.stem + "_docked")
 
+        import platform
+        # Dynamically detect OS to prevent .exe crashes in Docker
+        if platform.system() == "Windows":
+            vina_exec = "tools/vina.exe"
+        else:
+            vina_exec = "vina"
+
         engine = VinaEngine(
             receptor_pdbqt=str(receptor_pdbqt),
             ligand_pdbqt=str(ligand_pdbqt),
-            vina_executable="tools/vina.exe",
+            vina_executable=vina_exec,
         )
 
         score = engine.run(
