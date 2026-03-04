@@ -384,7 +384,7 @@ def dock_molecule(
             vina_executable=vina_exec,
         )
 
-        score = engine.run(
+        result = engine.run(
             center=center.tolist(),
             buffer_angstroms=15.0,
             cpu=4,
@@ -392,6 +392,9 @@ def dock_molecule(
             exhaustiveness=exhaustiveness,
             output_pdbqt=str(output_pdbqt),
         )
+
+        # Extract binding affinity from DockingResult object
+        score = result.binding_affinity if result else None
 
         if score is None or score > 100 or score < -200:
             logger.warning(f"Energy anomaly: {score}")
