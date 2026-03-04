@@ -421,8 +421,9 @@ class PrepareVina:
         """
         Apply strict 3D physical mutation using PDBFixer with proper sidechain building.
 
-        Uses OpenMM's PDBFixer to mathematically grow new sidechain atoms and add
-        hydrogens at physiological pH, ensuring structural validity.
+        Dynamically reads the crystal structure to detect the current residue and gracefully
+        skips redundant mutations. Uses OpenMM's PDBFixer to mathematically grow new sidechain
+        atoms and add hydrogens at physiological pH, ensuring structural validity.
 
         Args:
             pdb_file: Path to input PDB file.
@@ -431,10 +432,11 @@ class PrepareVina:
             to_aa: Target amino acid (1-letter or 3-letter code).
 
         Returns:
-            Path to the physically validated mutated PDB file.
+            Path to the physically validated mutated PDB file (or original if redundant).
 
         Raises:
             RuntimeError: If mutation or atom building fails.
+            ValueError: If residue not found in crystal structure.
         """
         from pdbfixer import PDBFixer
         from openmm.app import PDBFile
@@ -442,19 +444,39 @@ class PrepareVina:
 
         pdb_file = Path(pdb_file)
 
-        # Normalize to 3-letter amino acid code
-        to_aa_upper = to_aa.upper()
-        if len(to_aa_upper) == 1:
-            to_aa_3 = IUPACData.protein_letters_1to3.get(to_aa_upper, to_aa_upper)
-        else:
-            to_aa_3 = to_aa_upper
-
-        mutation_query = f"{chain_id}-{residue_num}-{to_aa_3}"
-        logger.info(f"Applying strict physical mutation via PDBFixer: {mutation_query}")
+        # Normalize target to 3-letter amino acid code
+        to_aa_3 = to_aa.upper()
+        if len(to_aa_3) == 1:
+            to_aa_3 = IUPACData.protein_letters_1to3.get(to_aa_3, to_aa_3).upper()
 
         try:
             # Load structure with PDBFixer
             fixer = PDBFixer(filename=str(pdb_file))
+
+            # Dynamically find the actual residue currently in the PDB
+            actual_res_name = None
+            for chain in fixer.topology.chains():
+                if chain.id == chain_id:
+                    for res in chain.residues():
+                        if int(res.id) == residue_num:
+                            actual_res_name = res.name
+                            break
+                    break
+
+            if not actual_res_name:
+                raise ValueError(f"Residue {residue_num} not found in chain {chain_id}")
+
+            # If the crystal structure already has the mutation, skip gracefully
+            if actual_res_name == to_aa_3:
+                logger.info(
+                    f"Residue {residue_num} is already {to_aa_3} in the crystal structure. "
+                    "Skipping mutation."
+                )
+                return pdb_file
+
+            # Construct the strict PDBFixer query: OLDRES-NUM-NEWRES
+            mutation_query = f"{actual_res_name}-{residue_num}-{to_aa_3}"
+            logger.info(f"Applying strict physical mutation via PDBFixer: {mutation_query}")
 
             # Apply mutation (PDBFixer handles sidechain geometry)
             fixer.applyMutations([mutation_query], chain_id)
@@ -478,5 +500,5 @@ class PrepareVina:
         except Exception as e:
             logger.error(f"PDBFixer failed to build 3D mutation: {str(e)}")
             raise RuntimeError(
-                f"Physical mutagenesis failed for {mutation_query}: {str(e)}"
+                f"Physical mutagenesis failed for {chain_id}:{residue_num}->{to_aa}: {str(e)}"
             )
