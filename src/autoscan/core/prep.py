@@ -417,7 +417,8 @@ class PrepareVina:
                 f"Expected {expected_aa_3}, found {actual_aa_3}."
             )
 
-    def mutate_residue(self, pdb_file: Path, chain_id: str, residue_num: int, to_aa: str) -> Path:
+    @staticmethod
+    def mutate_residue(pdb_file: Path, chain_id: str, residue_num: int, to_aa: str) -> Path:
         """
         Apply strict 3D physical mutation using PDBFixer with proper sidechain building.
 
@@ -441,7 +442,9 @@ class PrepareVina:
         from pdbfixer import PDBFixer
         from openmm.app import PDBFile
         from Bio.Data import IUPACData
+        import logging
 
+        logger_local = logging.getLogger(__name__)
         pdb_file = Path(pdb_file)
 
         # Normalize target to 3-letter amino acid code
@@ -468,7 +471,7 @@ class PrepareVina:
 
             # If the crystal structure already has the mutation, skip gracefully
             if actual_res_name == to_aa_3:
-                logger.info(
+                logger_local.info(
                     f"Residue {residue_num} is already {to_aa_3} in the crystal structure. "
                     "Skipping mutation."
                 )
@@ -476,7 +479,7 @@ class PrepareVina:
 
             # Construct the strict PDBFixer query: OLDRES-NUM-NEWRES
             mutation_query = f"{actual_res_name}-{residue_num}-{to_aa_3}"
-            logger.info(f"Applying strict physical mutation via PDBFixer: {mutation_query}")
+            logger_local.info(f"Applying strict physical mutation via PDBFixer: {mutation_query}")
 
             # Apply mutation (PDBFixer handles sidechain geometry)
             fixer.applyMutations([mutation_query], chain_id)
@@ -494,11 +497,11 @@ class PrepareVina:
             with open(output_path, "w") as f:
                 PDBFile.writeFile(fixer.topology, fixer.positions, f)
 
-            logger.info(f"Physical mutation complete: {output_path}")
+            logger_local.info(f"Physical mutation complete: {output_path}")
             return output_path
 
         except Exception as e:
-            logger.error(f"PDBFixer failed to build 3D mutation: {str(e)}")
+            logger_local.error(f"PDBFixer failed to build 3D mutation: {str(e)}")
             raise RuntimeError(
                 f"Physical mutagenesis failed for {chain_id}:{residue_num}->{to_aa}: {str(e)}"
             )
