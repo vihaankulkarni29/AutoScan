@@ -1,0 +1,47 @@
+services:
+  autoscan-validation:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+    image: autoscan:validation-latest
+    container_name: autoscan-validation-test
+    
+    # Run validation controls script
+    command: run_validation_controls.py
+    
+    # Mount volumes for data persistence and code
+    volumes:
+      - .:/app
+      - ./workspace:/app/workspace
+      - ./benchmark:/app/benchmark
+      - ./config:/app/config
+    
+    # Environment variables for execution
+    environment:
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      AUTOSCAN_DATA_DIR: /app/data
+      AUTOSCAN_CONFIG_DIR: /app/config
+      PATH: /usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    
+    # Resource allocation
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "10"
+    
+    # Process configuration
+    stdin_open: true
+    tty: true
+    restart: "no"
